@@ -23,19 +23,32 @@ enum
 
 typedef Model LTBModel;
 typedef std::shared_ptr<LTBModel> LTBModelPtr;
+typedef AnimInfo LTBAnimInfo;
+typedef ModelAnim LTBAnim;
+//
 typedef aiScene ExportScene;
 typedef std::shared_ptr<ExportScene> ExportScenePtr;
+//
 typedef aiMesh Mesh;
 typedef std::shared_ptr<Mesh> MeshPtr;
+//
 typedef aiNode Node;
 typedef std::shared_ptr<Node> NodePtr;
+//
 typedef aiBone Bone;
 typedef std::vector<Bone> BonesVec;
 typedef std::vector<Bone*> BonesPtrVec;
 typedef std::shared_ptr<Bone> BonePtr;
+//
 typedef aiMaterial Material;
 typedef std::vector<Material*> MaterialsPtrVec;
 typedef std::shared_ptr<Material> MaterialPtr;
+//
+typedef aiAnimation Animation;
+typedef std::vector<Animation*> AnimationsPtrVec;
+typedef aiNodeAnim NodeAnimation;
+typedef std::vector<NodeAnimation*> NodeAnimationsPtrVec;
+//
 
 class Converter
 {
@@ -54,13 +67,15 @@ private:
 
 	void grabSkeletonNodesFromLTB(LTBModelPtr ltbModel);
 
+	void grabAnimationsFromLTB(LTBModelPtr ltbModel);
+
 	void grabMaterialsPerMeshFromLTB(LTBModelPtr ltbModel);
 
 	void grabMeshesFromLTB(LTBModelPtr ltbModel);
 
 	void grabBonesPerMeshFromLTB(LTBModelPtr ltbModel);
 
-	aiMatrix4x4 recuseCalcuMat(Node* sceneNode);
+	aiMatrix4x4 recursCalcuMat(Node* sceneNode);
 
 	void releaseGrabbedData();
 
@@ -78,4 +93,6 @@ private:
 	std::vector<BonesPtrVec> m_bonesPtrArrPerMeshVec;
 	//
 	MaterialsPtrVec m_materialsPtrList;
+	//
+	AnimationsPtrVec m_animPtrList;
 };

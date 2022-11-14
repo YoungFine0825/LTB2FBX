@@ -186,6 +186,19 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 	}
 }
 
+void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel) 
+{
+	size_t numAnimInfo = ltbModel->m_Anims.GetSize();
+	if (numAnimInfo <= 0) 
+	{
+		return;
+	}
+	for (size_t animInfoIdx = 0; animInfoIdx < numAnimInfo; ++animInfoIdx)
+	{
+		LTBAnim* anim = ltbModel->GetAnim(animInfoIdx);
+	}
+}
+
 void Converter::grabMaterialsPerMeshFromLTB(LTBModelPtr ltbModel)
 {
 	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
@@ -331,12 +344,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 			{
 				bone->mNode = sceneNode;
 				bone->mArmature = sceneNode;
-				//bone->mOffsetMatrix =  recuseCalcuMat(sceneNode);//sceneNode->mTransformation;//
-			}
-			if (!sceneNode->mMeshes) 
-			{
-				sceneNode->mNumMeshes = 1;
-				sceneNode->mMeshes = new unsigned int[1]{ 1 };
+				bone->mOffsetMatrix =  recursCalcuMat(sceneNode);//sceneNode->mTransformation;//
 			}
 			bonesPtrVec.push_back(bone);
 		}
@@ -354,11 +362,11 @@ aiNode* Converter::getSkeletonNodeByName(const string& name)
 	return i->second;
 }
 
-aiMatrix4x4 Converter::recuseCalcuMat(Node* sceneNode) 
+aiMatrix4x4 Converter::recursCalcuMat(Node* sceneNode) 
 {
 	if (sceneNode->mParent) 
 	{
-		aiMatrix4x4 parent = recuseCalcuMat(sceneNode->mParent);
+		aiMatrix4x4 parent = recursCalcuMat(sceneNode->mParent);
 		return parent * sceneNode->mTransformation;
 	}
 	else 
