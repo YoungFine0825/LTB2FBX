@@ -26,82 +26,98 @@ Converter::Converter()
 Converter::~Converter() 
 {
 	m_lzmaDecoder->Destroy();
-	m_meshesList.clear();
+	releaseGrabbedData();
+}
+
+void Converter::releaseGrabbedData() 
+{
 	m_ltbDrawableList.clear();
-	m_skeletonNodes.clear();
+	//
+	if (m_meshesPtrVec.size() > 0) 
+	{
+		for (size_t i = 0; i < m_meshesPtrVec.size(); ++i) 
+		{
+			delete m_meshesPtrVec[i];
+		}
+	}
+	m_meshesPtrVec.clear();
+	//
 	m_name2SkeNode.clear();
 	m_name2SkeNodeIdx.clear();
-	m_bonesList.clear();
-	m_meshBonesArray.clear();
-	m_numBonesPerMesh.clear();
+	m_skeletonNodes.clear();
+	//
+	if (m_bonesPtrArrPerMeshVec.size() > 0)
+	{
+		for (size_t i = 0; i < m_bonesPtrArrPerMeshVec.size(); ++i)
+		{
+			for (size_t j = 0; j < m_bonesPtrArrPerMeshVec[i].size(); ++j)
+			{
+				delete m_bonesPtrArrPerMeshVec[i][j];
+			}
+		}
+	}
+	m_bonesPtrArrPerMeshVec.clear();
+	//
+	if (m_materialsPtrList.size() > 0) 
+	{
+		for (size_t i = 0; i < m_materialsPtrList.size(); ++i)
+		{
+			delete m_materialsPtrList[i];
+		}
+	}
+	m_materialsPtrList.clear();
 }
 
 int Converter::ConvertSingleLTBFile(const std::string& ltbFilePath, const std::string& outFilePath)
 {
-	Model* ltbModel = new Model();
+	LTBModelPtr ltbModel = make_shared<LTBModel>();
 	int ret = LoadLTBModel(ltbFilePath,ltbModel);
 	if (ret != CONVERT_RET_OK) 
 	{
-		delete ltbModel;
 		return ret;
 	}
 	bool success = doConvertLTB(ltbModel, outFilePath);
 	if (!success)
 	{
-		delete ltbModel;
 		return CONVERT_RET_EXPORT_LTB_2_FBX_FAILED;
 	}
-	delete ltbModel;
 	return CONVERT_RET_OK;
 }
 
-bool Converter::doConvertLTB(Model* ltbModel, std::string outFilePath)
+bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 {
-	if (exportScene) 
-	{
-		delete exportScene;
-	}
-	exportScene = new aiScene();
-	//
-	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
+	aiScene* exportScene = new aiScene();
 	//
 	grabSkeletonNodesFromLTB(ltbModel);
 	//
-	grabMeshesFromLTB(ltbModel);
+	grabMaterialsPerMeshFromLTB(ltbModel);
 	//
-	grabAndBuildMeshBones(ltbModel);
+	grabBonesPerMeshFromLTB(ltbModel);
+	//
+	grabMeshesFromLTB(ltbModel);
 	//
 	exportScene->mRootNode = new aiNode();
 	exportScene->mRootNode->mName = ltbModel->GetFilename();
-	exportScene->mNumMeshes = numMeshes;
-	exportScene->mMeshes = &m_meshesList[0];
 	//
-	std::vector<aiNode*> meshNodes;
-	std::vector<aiMaterial*> materials;
+	const unsigned int numMeshes = m_meshesPtrVec.size();
+	exportScene->mNumMeshes = numMeshes;
+	exportScene->mMeshes = &m_meshesPtrVec[0];
+	//
+	exportScene->mMaterials = &m_materialsPtrList[0];
+	exportScene->mNumMaterials = m_materialsPtrList.size();
+	//
 	for (size_t i = 0; i < numMeshes; ++i)
 	{
-		aiNode* node = new aiNode();
-		node->mName = m_meshesList[i]->mName;
-		node->mNumMeshes = 1;
-		node->mMeshes = new unsigned int[1];
-		node->mMeshes[0] = i;
-		meshNodes.push_back(node);
-		exportScene->mRootNode->addChildren(1, &node);
-		printf("Export Mesh : %s\n", node->mName.data);
-		//
-		aiBone* arrayHead = m_meshBonesArray[i];
-		m_meshesList[i]->mBones = &arrayHead;
-		m_meshesList[i]->mNumBones = m_numBonesPerMesh[i];
-		//
-		aiMaterial* mat = new aiMaterial();
-		materials.push_back(mat);
+		aiNode* meshSceneNode = new aiNode();
+		meshSceneNode->mName = m_meshesPtrVec[i]->mName;
+		meshSceneNode->mNumMeshes = 1;
+		meshSceneNode->mMeshes = new unsigned int[1];
+		meshSceneNode->mMeshes[0] = i;
+		exportScene->mRootNode->addChildren(1, &meshSceneNode);
 	}
 	//
-	exportScene->mMaterials = &materials[0];
-	exportScene->mNumMaterials = numMeshes;
-	//
-	aiNode* nodesArray = &m_skeletonNodes[0];
-	exportScene->mRootNode->addChildren(1, &nodesArray);
+	aiNode* skeNodeArrHead = &m_skeletonNodes[0];
+	exportScene->mRootNode->addChildren(1, &skeNodeArrHead);
 	//
 	exportScene->mNumAnimations = 0;
 	exportScene->mNumCameras = 0;
@@ -110,6 +126,7 @@ bool Converter::doConvertLTB(Model* ltbModel, std::string outFilePath)
 	//
 	Assimp::Exporter exporter;
 	aiReturn ret = exporter.Export(exportScene, "fbx", outFilePath);
+	//releaseGrabbedData();
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -117,12 +134,8 @@ bool Converter::doConvertLTB(Model* ltbModel, std::string outFilePath)
 	return true;
 }
 
-void Converter::grabSkeletonNodesFromLTB(Model* ltbModel)
+void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 {
-	m_skeletonNodes.clear();
-	m_name2SkeNode.clear();
-	m_name2SkeNodeIdx.clear();
-	m_bonesList.clear();
 	//
 	unsigned int numNodes = ltbModel->m_FlatNodeList.GetSize();
 	//
@@ -146,15 +159,6 @@ void Converter::grabSkeletonNodesFromLTB(Model* ltbModel)
 		skeNode->mTransformation = mat;
 		//
 		m_skeletonNodes.push_back(*skeNode);
-		//
-		aiBone bone;
-		bone.mName = nodeName;
-		bone.mNumWeights = 0;
-		bone.mWeights = nullptr;
-		bone.mNode = skeNode;
-		bone.mArmature = skeNode;
-		bone.mOffsetMatrix = mat;
-		m_bonesList.push_back(bone);
 	}
 	//
 	vector<vector<aiNode*>> childrenList(numNodes);
@@ -182,10 +186,18 @@ void Converter::grabSkeletonNodesFromLTB(Model* ltbModel)
 	}
 }
 
-void Converter::grabMeshesFromLTB(Model* ltbModel)
+void Converter::grabMaterialsPerMeshFromLTB(LTBModelPtr ltbModel)
 {
-	m_meshesList.clear();
-	m_ltbDrawableList.clear();
+	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
+	for (size_t i = 0; i < numMeshes; ++i)
+	{
+		aiMaterial* mat = new aiMaterial();
+		m_materialsPtrList.push_back(mat);
+	}
+}
+
+void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
+{
 	//
 	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
 	//
@@ -193,12 +205,12 @@ void Converter::grabMeshesFromLTB(Model* ltbModel)
 	{
 		ModelPiece* piece = ltbModel->GetPiece(meshIdx);
 		CDIModelDrawable* draw = piece->GetLOD(0);
+		size_t numVert = draw->m_Verts.GetSize();
 		//
-		aiMesh* mesh = new aiMesh();
+		Mesh* mesh = new Mesh();
 		mesh->mPrimitiveTypes = aiPrimitiveType_TRIANGLE;
 		mesh->mName.Set(piece->GetName());
 		//
-		size_t numVert = draw->m_Verts.GetSize();
 		aiVector3D* vertices = new aiVector3D[numVert]();
 		aiVector3D* normals = new aiVector3D[numVert]();
 		aiVector3D* uvs = new aiVector3D[numVert]();
@@ -237,25 +249,25 @@ void Converter::grabMeshesFromLTB(Model* ltbModel)
 		mesh->mBitangents = bitangents;
 		mesh->mFaces = faces;
 		mesh->mNumFaces = numTri;
-		mesh->mNumBones = 0;
+		mesh->mNumBones = m_bonesPtrArrPerMeshVec[meshIdx].size();
+		mesh->mBones = &m_bonesPtrArrPerMeshVec[meshIdx][0];
 		mesh->mNumAnimMeshes = 0;
 		//
-		m_meshesList.push_back(mesh);
+		m_meshesPtrVec.push_back(mesh);
 		m_ltbDrawableList.push_back(draw);
 	}
 }
 
-void Converter::grabAndBuildMeshBones(Model* ltbModel)
+void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 {
-	m_meshBonesArray.clear();
-	m_numBonesPerMesh.clear();
-	unsigned int numMeshes = m_meshesList.size();
+	//
+	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
 	//
 	for (unsigned int meshIdx = 0; meshIdx < numMeshes; ++meshIdx)
 	{
-		aiMesh* mesh = m_meshesList[meshIdx];
-		CDIModelDrawable* drawable = m_ltbDrawableList[meshIdx];
-		unsigned int numVertices = mesh->mNumVertices;
+		ModelPiece* piece = ltbModel->GetPiece(meshIdx);
+		CDIModelDrawable* drawable = piece->GetLOD(0);
+		unsigned int numVertices = drawable->m_Verts.GetSize();
 		//
 		vector<string> bonesName;
 		map<string, WeightList> weights;
@@ -291,36 +303,44 @@ void Converter::grabAndBuildMeshBones(Model* ltbModel)
 				}
 			}
 		}
-		//
 		//构建当前网格所需的骨骼数据
 		unsigned int numBonesOfMesh = bonesName.size();
-		aiBone* boneArray = new aiBone[numBonesOfMesh]();
+		//
+		BonesPtrVec bonesPtrVec;
 		for (unsigned int boneIdx = 0; boneIdx < numBonesOfMesh; ++boneIdx)
 		{
 			string boneName = bonesName[boneIdx];
-			aiBone* bone = &boneArray[boneIdx];
+			Bone* bone = new Bone();
 			bone->mName.Set(boneName.c_str());
+			//
 			map<string, WeightList>::iterator i = weights.find(boneName);
-			if (i != weights.end()) 
+			if (i != weights.end())
 			{
-				bone->mNumWeights = i->second.size();
-				bone->mWeights = &(i->second[0]);
+				unsigned int numWei = i->second.size();
+				aiVertexWeight* weiArray = new aiVertexWeight[numWei]();
+				for (size_t wIdx = 0; wIdx < numWei; ++wIdx) 
+				{
+					weiArray[wIdx] = i->second[wIdx];
+				}
+				bone->mNumWeights = numWei;
+				bone->mWeights = weiArray;
 			}
+			//
 			aiNode* sceneNode = getSkeletonNodeByName(boneName);
-			if (sceneNode) 
+			if (sceneNode)
 			{
 				bone->mNode = sceneNode;
 				bone->mArmature = sceneNode;
-				bone->mOffsetMatrix = sceneNode->mTransformation;
+				//bone->mOffsetMatrix =  recuseCalcuMat(sceneNode);//sceneNode->mTransformation;//
 			}
+			if (!sceneNode->mMeshes) 
+			{
+				sceneNode->mNumMeshes = 1;
+				sceneNode->mMeshes = new unsigned int[1]{ 1 };
+			}
+			bonesPtrVec.push_back(bone);
 		}
-		//
-		if (numBonesOfMesh > 0) 
-		{
-			//保存网格所需的骨骼数据
-			m_meshBonesArray.push_back(boneArray);
-			m_numBonesPerMesh.push_back(numBonesOfMesh);
-		}
+		m_bonesPtrArrPerMeshVec.push_back(bonesPtrVec);
 	}
 }
 
@@ -334,19 +354,20 @@ aiNode* Converter::getSkeletonNodeByName(const string& name)
 	return i->second;
 }
 
-aiBone* Converter::getBoneByName(const string& name) 
+aiMatrix4x4 Converter::recuseCalcuMat(Node* sceneNode) 
 {
-	std::map<std::string, int>::iterator i = m_name2SkeNodeIdx.find(name);
-	if (i == m_name2SkeNodeIdx.end())
+	if (sceneNode->mParent) 
 	{
-		return nullptr;
+		aiMatrix4x4 parent = recuseCalcuMat(sceneNode->mParent);
+		return parent * sceneNode->mTransformation;
 	}
-	int idx = i->second;
-	aiBone* ret = &m_bonesList[idx];
-	return ret;
+	else 
+	{
+		return sceneNode->mTransformation;
+	}
 }
 
-int Converter::LoadLTBModel(const std::string& modelFilePath, Model* ltbModel)
+int Converter::LoadLTBModel(const std::string& modelFilePath, LTBModelPtr ltbModel)
 {
 	DosFileStream* inStream = new DosFileStream();
 	if (inStream->Open(modelFilePath.c_str()) != LT_OK)

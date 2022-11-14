@@ -21,6 +21,22 @@ enum
 	CONVERT_RET_EXPORT_LTB_2_FBX_FAILED = 6,
 };
 
+typedef Model LTBModel;
+typedef std::shared_ptr<LTBModel> LTBModelPtr;
+typedef aiScene ExportScene;
+typedef std::shared_ptr<ExportScene> ExportScenePtr;
+typedef aiMesh Mesh;
+typedef std::shared_ptr<Mesh> MeshPtr;
+typedef aiNode Node;
+typedef std::shared_ptr<Node> NodePtr;
+typedef aiBone Bone;
+typedef std::vector<Bone> BonesVec;
+typedef std::vector<Bone*> BonesPtrVec;
+typedef std::shared_ptr<Bone> BonePtr;
+typedef aiMaterial Material;
+typedef std::vector<Material*> MaterialsPtrVec;
+typedef std::shared_ptr<Material> MaterialPtr;
+
 class Converter
 {
 public:
@@ -28,25 +44,38 @@ public:
 	~Converter();
 
 	int ConvertSingleLTBFile(const std::string& inputFilePath, const std::string& outFilePath);
-	int LoadLTBModel(const std::string& modelFilePath, Model* ltbModel);
+	int LoadLTBModel(const std::string& modelFilePath, LTBModelPtr ltbModel);
 private:
 	bool readLTBHeader(LTB_Header* head, DosFileStream* stream);
+
 	bool decodingLTBFile(const std::string& inputFilePath, DosFileStream* fileStream);
-	bool doConvertLTB(Model* ltbModel, std::string outFilePath);
-	void grabMeshesFromLTB(Model* ltbModel);
-	void grabSkeletonNodesFromLTB(Model* ltbModel);
-	void grabAndBuildMeshBones(Model* ltbModel);
+
+	bool doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath);
+
+	void grabSkeletonNodesFromLTB(LTBModelPtr ltbModel);
+
+	void grabMaterialsPerMeshFromLTB(LTBModelPtr ltbModel);
+
+	void grabMeshesFromLTB(LTBModelPtr ltbModel);
+
+	void grabBonesPerMeshFromLTB(LTBModelPtr ltbModel);
+
+	aiMatrix4x4 recuseCalcuMat(Node* sceneNode);
+
+	void releaseGrabbedData();
+
 	aiNode* getSkeletonNodeByName(const std::string& name);
-	aiBone* getBoneByName(const std::string& name);
 	//
 	LzmaDecoder* m_lzmaDecoder;
-	aiScene* exportScene = nullptr;
-	std::vector<aiMesh*> m_meshesList;
+	//
+	std::vector<Mesh*> m_meshesPtrVec;
 	std::vector<CDIModelDrawable*> m_ltbDrawableList;
-	std::vector<aiNode> m_skeletonNodes;
-	std::map<std::string, aiNode*> m_name2SkeNode;
+	//
+	std::vector<Node> m_skeletonNodes;
+	std::map<std::string, Node*> m_name2SkeNode;
 	std::map<std::string, int> m_name2SkeNodeIdx;
-	std::vector<aiBone> m_bonesList;
-	std::vector<aiBone*> m_meshBonesArray;
-	std::vector<int> m_numBonesPerMesh;
+	//
+	std::vector<BonesPtrVec> m_bonesPtrArrPerMeshVec;
+	//
+	MaterialsPtrVec m_materialsPtrList;
 };

@@ -6,11 +6,22 @@
 
 int main(int argc,char** argv)
 {
-	std::string inFile = "bin/res/Yunyoyo/src/Esports_Yun_BODY_GR.ltb";
-	//char inFile[] = "bin/res/CFAnim/M-MOTION_BLUE.ltb";
-	std::string outFile = "bin/res/Esports_Yun_BODY_GR.fbx";
+	if (argc <= 1) 
+	{
+		printf("[input-file] [out-file]");
+		return 0;
+	}
+	std::string inFile = argv[1];
+	std::string outFile = argv[2];
 	Converter* converter = new Converter();
 	int ret = converter->ConvertSingleLTBFile(inFile, outFile);
-
+	if (ret != CONVERT_RET_OK) 
+	{
+		printf("Convert Failed ! file= %s\n", inFile.c_str());
+	}
+	else 
+	{
+		printf("Convert Successful ! file= %s\n",outFile.c_str());
+	}
     return 0;   
 }
