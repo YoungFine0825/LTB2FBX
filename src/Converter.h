@@ -25,6 +25,8 @@ typedef Model LTBModel;
 typedef std::shared_ptr<LTBModel> LTBModelPtr;
 typedef AnimInfo LTBAnimInfo;
 typedef ModelAnim LTBAnim;
+typedef AnimNode LTBAnimNode;
+typedef AnimKeyFrame LTBAnimKeyFrame;
 //
 typedef aiScene ExportScene;
 typedef std::shared_ptr<ExportScene> ExportScenePtr;
@@ -94,5 +96,8 @@ private:
 	//
 	MaterialsPtrVec m_materialsPtrList;
 	//
-	AnimationsPtrVec m_animPtrList;
+	AnimationsPtrVec m_animPtrVec;
+	std::vector<NodeAnimationsPtrVec> m_nodeAnimPtrVecList;
+	//
+	int m_maxNumOutputAnim = 1;
 };

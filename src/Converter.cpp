@@ -33,39 +33,18 @@ void Converter::releaseGrabbedData()
 {
 	m_ltbDrawableList.clear();
 	//
-	if (m_meshesPtrVec.size() > 0) 
-	{
-		for (size_t i = 0; i < m_meshesPtrVec.size(); ++i) 
-		{
-			delete m_meshesPtrVec[i];
-		}
-	}
 	m_meshesPtrVec.clear();
 	//
 	m_name2SkeNode.clear();
 	m_name2SkeNodeIdx.clear();
 	m_skeletonNodes.clear();
 	//
-	if (m_bonesPtrArrPerMeshVec.size() > 0)
-	{
-		for (size_t i = 0; i < m_bonesPtrArrPerMeshVec.size(); ++i)
-		{
-			for (size_t j = 0; j < m_bonesPtrArrPerMeshVec[i].size(); ++j)
-			{
-				delete m_bonesPtrArrPerMeshVec[i][j];
-			}
-		}
-	}
 	m_bonesPtrArrPerMeshVec.clear();
 	//
-	if (m_materialsPtrList.size() > 0) 
-	{
-		for (size_t i = 0; i < m_materialsPtrList.size(); ++i)
-		{
-			delete m_materialsPtrList[i];
-		}
-	}
 	m_materialsPtrList.clear();
+	//
+	m_nodeAnimPtrVecList.clear();
+	m_animPtrVec.clear();
 }
 
 int Converter::ConvertSingleLTBFile(const std::string& ltbFilePath, const std::string& outFilePath)
@@ -77,6 +56,7 @@ int Converter::ConvertSingleLTBFile(const std::string& ltbFilePath, const std::s
 		return ret;
 	}
 	bool success = doConvertLTB(ltbModel, outFilePath);
+	//releaseGrabbedData();
 	if (!success)
 	{
 		return CONVERT_RET_EXPORT_LTB_2_FBX_FAILED;
@@ -94,8 +74,11 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	//
 	grabBonesPerMeshFromLTB(ltbModel);
 	//
+	grabAnimationsFromLTB(ltbModel);
+	//
 	grabMeshesFromLTB(ltbModel);
 	//
+	//exportScene->mFlags = AI_SCENE_FLAGS_ALLOW_SHARED;
 	exportScene->mRootNode = new aiNode();
 	exportScene->mRootNode->mName = ltbModel->GetFilename();
 	//
@@ -119,14 +102,15 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	aiNode* skeNodeArrHead = &m_skeletonNodes[0];
 	exportScene->mRootNode->addChildren(1, &skeNodeArrHead);
 	//
-	exportScene->mNumAnimations = 0;
+	exportScene->mNumAnimations = m_animPtrVec.size();
+	exportScene->mAnimations = &m_animPtrVec[0];
+	//
 	exportScene->mNumCameras = 0;
 	exportScene->mNumLights = 0;
 	exportScene->mNumTextures = 0;
 	//
 	Assimp::Exporter exporter;
 	aiReturn ret = exporter.Export(exportScene, "fbx", outFilePath);
-	//releaseGrabbedData();
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -193,9 +177,62 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 	{
 		return;
 	}
+	numAnimInfo = min(numAnimInfo,m_maxNumOutputAnim);
+	//
+	unsigned int numSkeNodes = ltbModel->NumNodes();
+	m_nodeAnimPtrVecList.resize(numAnimInfo);
+	double toSecond = 1000;
 	for (size_t animInfoIdx = 0; animInfoIdx < numAnimInfo; ++animInfoIdx)
 	{
-		LTBAnim* anim = ltbModel->GetAnim(animInfoIdx);
+		LTBAnim* ltbAnim = ltbModel->GetAnim(animInfoIdx);
+		string ltbAnimName = ltbAnim->GetName();
+		unsigned int ltbAnimDuration = ltbAnim->GetAnimTime();
+		unsigned int numLTBKeyFrame = ltbAnim->m_KeyFrames.GetSize();
+		//
+		Animation* anim = new Animation();
+		anim->mName = ltbAnimName;
+		anim->mDuration = (double)ltbAnimDuration / toSecond;
+		anim->mTicksPerSecond = 30;
+		NodeAnimationsPtrVec* nodeAnimPtrVec = &m_nodeAnimPtrVecList[animInfoIdx];
+		//
+		for (size_t skeNodeIdx = 0; skeNodeIdx < numSkeNodes; ++skeNodeIdx)
+		{
+			NodeAnimation* nodeAnim = new NodeAnimation();
+			nodeAnim->mNodeName = ltbModel->GetNode(skeNodeIdx)->GetName();
+			nodeAnim->mNumPositionKeys = numLTBKeyFrame;
+			nodeAnim->mPositionKeys = new aiVectorKey[numLTBKeyFrame]();
+			nodeAnim->mNumRotationKeys = numLTBKeyFrame;
+			nodeAnim->mRotationKeys = new aiQuatKey[numLTBKeyFrame]();
+			nodeAnim->mNumScalingKeys = 0;
+			//
+			LTBAnimNode* ltbAnimNode = ltbAnim->GetAnimNode(skeNodeIdx);
+			//
+			for (size_t k = 0; k < numLTBKeyFrame; ++k)
+			{
+				LTBAnimKeyFrame frame = ltbAnim->m_KeyFrames[k];
+				LTVector pos;
+				LTRotation quat;
+				ltbAnimNode->GetData(k, pos, quat);
+				//
+				double frameTime = (double)frame.m_Time;
+				nodeAnim->mPositionKeys[k].mTime = frameTime / toSecond;
+				aiVector3D nodePos(pos.x, pos.y, pos.z);
+				nodeAnim->mPositionKeys[k].mValue = nodePos;
+				//
+				nodeAnim->mRotationKeys[k].mTime = frameTime / toSecond;
+				aiQuaternion nodeRot(quat.m_Quat[3], quat.m_Quat[0], quat.m_Quat[1], quat.m_Quat[2]);
+				nodeAnim->mRotationKeys[k].mValue = nodeRot;
+			}
+			//
+			nodeAnimPtrVec->push_back(nodeAnim);
+		}
+		//
+		anim->mChannels = &(*nodeAnimPtrVec)[0];
+		anim->mNumChannels = nodeAnimPtrVec->size();
+		anim->mNumMeshChannels = 0;
+		anim->mNumMorphMeshChannels = 0;
+		//
+		m_animPtrVec.push_back(anim);
 	}
 }
 
@@ -344,7 +381,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 			{
 				bone->mNode = sceneNode;
 				bone->mArmature = sceneNode;
-				bone->mOffsetMatrix =  recursCalcuMat(sceneNode);//sceneNode->mTransformation;//
+				bone->mOffsetMatrix = sceneNode->mTransformation;//recursCalcuMat(sceneNode);//
 			}
 			bonesPtrVec.push_back(bone);
 		}
