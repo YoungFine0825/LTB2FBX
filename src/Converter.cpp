@@ -66,7 +66,7 @@ int Converter::ConvertSingleLTBFile(const std::string& ltbFilePath, const std::s
 
 bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 {
-	aiScene* exportScene = new aiScene();
+	ExportScene* exportScene = new ExportScene();
 	//
 	grabSkeletonNodesFromLTB(ltbModel);
 	//
@@ -109,8 +109,10 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	exportScene->mNumLights = 0;
 	exportScene->mNumTextures = 0;
 	//
+	printExportOverview(exportScene, ltbModel);
+	//
 	Assimp::Exporter exporter;
-	aiReturn ret = exporter.Export(exportScene, "fbx", outFilePath);
+	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath);
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -172,12 +174,15 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 
 void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel) 
 {
-	size_t numAnimInfo = ltbModel->m_Anims.GetSize();
+	int numAnimInfo = ltbModel->m_Anims.GetSize();
 	if (numAnimInfo <= 0) 
 	{
 		return;
 	}
-	numAnimInfo = min(numAnimInfo,m_maxNumOutputAnim);
+	if (m_maxNumOutputAnim > -1) 
+	{
+		numAnimInfo = min(numAnimInfo, m_maxNumOutputAnim);
+	}
 	//
 	unsigned int numSkeNodes = ltbModel->NumNodes();
 	m_nodeAnimPtrVecList.resize(numAnimInfo);
@@ -192,7 +197,7 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 		Animation* anim = new Animation();
 		anim->mName = ltbAnimName;
 		anim->mDuration = (double)ltbAnimDuration / toSecond;
-		anim->mTicksPerSecond = 30;
+		anim->mTicksPerSecond = 0;
 		NodeAnimationsPtrVec* nodeAnimPtrVec = &m_nodeAnimPtrVecList[animInfoIdx];
 		//
 		for (size_t skeNodeIdx = 0; skeNodeIdx < numSkeNodes; ++skeNodeIdx)
@@ -204,24 +209,30 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 			nodeAnim->mNumRotationKeys = numLTBKeyFrame;
 			nodeAnim->mRotationKeys = new aiQuatKey[numLTBKeyFrame]();
 			nodeAnim->mNumScalingKeys = 0;
+			nodeAnim->mPreState = aiAnimBehaviour_LINEAR;
+			nodeAnim->mPostState = aiAnimBehaviour_LINEAR;
 			//
 			LTBAnimNode* ltbAnimNode = ltbAnim->GetAnimNode(skeNodeIdx);
+			//printf("Anim Node %s\n", nodeAnim->mNodeName.data);
 			//
-			for (size_t k = 0; k < numLTBKeyFrame; ++k)
+			for (unsigned int k = 0; k < numLTBKeyFrame; ++k)
 			{
 				LTBAnimKeyFrame frame = ltbAnim->m_KeyFrames[k];
 				LTVector pos;
 				LTRotation quat;
 				ltbAnimNode->GetData(k, pos, quat);
 				//
-				double frameTime = (double)frame.m_Time;
-				nodeAnim->mPositionKeys[k].mTime = frameTime / toSecond;
+				double frameTime = (double)frame.m_Time / toSecond;
 				aiVector3D nodePos(pos.x, pos.y, pos.z);
+				aiQuaternion nodeRot(quat.m_Quat[3], quat.m_Quat[0], quat.m_Quat[1], quat.m_Quat[2]);
+				nodeAnim->mPositionKeys[k].mTime = frameTime;
 				nodeAnim->mPositionKeys[k].mValue = nodePos;
 				//
-				nodeAnim->mRotationKeys[k].mTime = frameTime / toSecond;
-				aiQuaternion nodeRot(quat.m_Quat[3], quat.m_Quat[0], quat.m_Quat[1], quat.m_Quat[2]);
+				nodeAnim->mRotationKeys[k].mTime = frameTime;
 				nodeAnim->mRotationKeys[k].mValue = nodeRot;
+				//
+				//printf("   KeyFrame%d  x=%f y=%f z=%f \n", k, nodePos.x, nodePos.y, nodePos.z);
+				//printf("   KeyFrame%d  w=%f x=%f y=%f z=%f \n", k, nodeRot.w, nodeRot.x, nodeRot.y, nodeRot.z);
 			}
 			//
 			nodeAnimPtrVec->push_back(nodeAnim);
@@ -313,6 +324,8 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 	//
 	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
 	//
+	map<string, unsigned int> createdBones;
+	//
 	for (unsigned int meshIdx = 0; meshIdx < numMeshes; ++meshIdx)
 	{
 		ModelPiece* piece = ltbModel->GetPiece(meshIdx);
@@ -370,7 +383,8 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 				aiVertexWeight* weiArray = new aiVertexWeight[numWei]();
 				for (size_t wIdx = 0; wIdx < numWei; ++wIdx) 
 				{
-					weiArray[wIdx] = i->second[wIdx];
+					weiArray[wIdx].mVertexId = i->second[wIdx].mVertexId;
+					weiArray[wIdx].mWeight = i->second[wIdx].mWeight;
 				}
 				bone->mNumWeights = numWei;
 				bone->mWeights = weiArray;
@@ -384,8 +398,39 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 				bone->mOffsetMatrix = sceneNode->mTransformation;//recursCalcuMat(sceneNode);//
 			}
 			bonesPtrVec.push_back(bone);
+			//
+			createdBones[boneName] = meshIdx;
 		}
 		m_bonesPtrArrPerMeshVec.push_back(bonesPtrVec);
+	}
+	//
+	size_t numSkeNodes = m_skeletonNodes.size();
+	for (size_t si = 0; si < numSkeNodes; ++si) 
+	{
+		Node* skeNode = &m_skeletonNodes[si];
+		map<string, unsigned int>::iterator it = createdBones.find(skeNode->mName.data);
+		if (it == createdBones.end()) 
+		{
+			Node* parentNode = skeNode->mParent;
+			if (parentNode) 
+			{
+				map<string, unsigned int>::iterator parnetNodeIt = createdBones.find(parentNode->mName.data);
+				if (parnetNodeIt != createdBones.end())
+				{
+					unsigned int meshIdx = parnetNodeIt->second;
+					Bone* bone = new Bone();
+					bone->mName.Set(skeNode->mName.data);
+					aiNode* sceneNode = getSkeletonNodeByName(skeNode->mName.data);
+					if (sceneNode)
+					{
+						bone->mNode = sceneNode;
+						bone->mArmature = sceneNode;
+						bone->mOffsetMatrix = sceneNode->mTransformation;//recursCalcuMat(sceneNode);//
+					}
+					m_bonesPtrArrPerMeshVec[meshIdx].push_back(bone);
+				}
+			}
+		}
 	}
 }
 
@@ -497,4 +542,32 @@ bool Converter::decodingLTBFile(const std::string& ltbFilePath, DosFileStream* f
 		return false;
 	}
 	return true;
+}
+
+void Converter::SetExportFormat(string formatExt) 
+{
+	m_exportFormat = formatExt;
+}
+
+void Converter::printExportOverview(ExportScene* exportScene,LTBModelPtr ltbModel)
+{
+	printf("-*- -*- -*- 摘要 -*- -*- -*-\n");
+	printf("* 导出格式：%s\n", m_exportFormat.c_str());
+	size_t numMeshes = m_meshesPtrVec.size();
+	printf("* 网格数量：%d\n", numMeshes);
+	for (size_t mi = 0; mi < numMeshes; ++mi)
+	{
+		printf("*     网格名称：%s  顶点数量：%d  三角面数量：%d\n", m_meshesPtrVec[mi]->mName.data, m_meshesPtrVec[mi]->mNumVertices, m_meshesPtrVec[mi]->mNumFaces);
+	}
+	printf("* 骨骼数量：%d\n", m_skeletonNodes.size());
+	printf("* 动画数量：%d\n", m_animPtrVec.size());
+	printf("-*- -*- -*- -*- -*- -*- -*-\n");
+	printf("* 开始转换... Processing...\n");
+	if (m_animPtrVec.size() > 30) 
+	{
+		printf("-*- -*- Warning -*- -*-\n"); 
+		printf("* 动画数量较多，导出会比较耗时，请耐心等待...\n");
+		printf("* There are too many animations，please waiting for a seconds...\n");
+		printf("-*- -*- -*- -*- -*- -*-\n");
+	}
 }

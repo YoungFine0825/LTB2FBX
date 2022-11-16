@@ -29,22 +29,17 @@ typedef AnimNode LTBAnimNode;
 typedef AnimKeyFrame LTBAnimKeyFrame;
 //
 typedef aiScene ExportScene;
-typedef std::shared_ptr<ExportScene> ExportScenePtr;
 //
 typedef aiMesh Mesh;
-typedef std::shared_ptr<Mesh> MeshPtr;
 //
 typedef aiNode Node;
-typedef std::shared_ptr<Node> NodePtr;
 //
 typedef aiBone Bone;
 typedef std::vector<Bone> BonesVec;
 typedef std::vector<Bone*> BonesPtrVec;
-typedef std::shared_ptr<Bone> BonePtr;
 //
 typedef aiMaterial Material;
 typedef std::vector<Material*> MaterialsPtrVec;
-typedef std::shared_ptr<Material> MaterialPtr;
 //
 typedef aiAnimation Animation;
 typedef std::vector<Animation*> AnimationsPtrVec;
@@ -60,6 +55,7 @@ public:
 
 	int ConvertSingleLTBFile(const std::string& inputFilePath, const std::string& outFilePath);
 	int LoadLTBModel(const std::string& modelFilePath, LTBModelPtr ltbModel);
+	void SetExportFormat(std::string formatExt);
 private:
 	bool readLTBHeader(LTB_Header* head, DosFileStream* stream);
 
@@ -82,6 +78,8 @@ private:
 	void releaseGrabbedData();
 
 	aiNode* getSkeletonNodeByName(const std::string& name);
+
+	void printExportOverview(ExportScene* exportScene,LTBModelPtr ltbModel);
 	//
 	LzmaDecoder* m_lzmaDecoder;
 	//
@@ -100,4 +98,6 @@ private:
 	std::vector<NodeAnimationsPtrVec> m_nodeAnimPtrVecList;
 	//
 	int m_maxNumOutputAnim = 1;
+	//
+	std::string m_exportFormat = "fbx";
 };
