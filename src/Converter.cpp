@@ -31,7 +31,6 @@ Converter::~Converter()
 
 void Converter::releaseGrabbedData() 
 {
-	m_ltbDrawableList.clear();
 	//
 	m_meshesPtrVec.clear();
 	//
@@ -315,7 +314,6 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 		mesh->mNumAnimMeshes = 0;
 		//
 		m_meshesPtrVec.push_back(mesh);
-		m_ltbDrawableList.push_back(draw);
 	}
 }
 

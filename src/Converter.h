@@ -84,7 +84,6 @@ private:
 	LzmaDecoder* m_lzmaDecoder;
 	//
 	std::vector<Mesh*> m_meshesPtrVec;
-	std::vector<CDIModelDrawable*> m_ltbDrawableList;
 	//
 	std::vector<Node> m_skeletonNodes;
 	std::map<std::string, Node*> m_name2SkeNode;
@@ -97,7 +96,7 @@ private:
 	AnimationsPtrVec m_animPtrVec;
 	std::vector<NodeAnimationsPtrVec> m_nodeAnimPtrVecList;
 	//
-	int m_maxNumOutputAnim = 1;
+	int m_maxNumOutputAnim = -1;
 	//
 	std::string m_exportFormat = "fbx";
 };

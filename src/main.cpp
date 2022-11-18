@@ -12,6 +12,15 @@ std::string grabFileExt(std::string filePath)
 	return ext;
 }
 
+std::string replaceFileExt(std::string filePath, std::string ext)
+{
+	int firstDot = filePath.find_first_of('.', 0);
+	int lastDot = filePath.find_last_of('.', 0);
+	int dotIndex = max(firstDot, lastDot);
+	std::string pathWithoutExt = filePath.substr(0, dotIndex);
+	return pathWithoutExt + '.' + ext;
+}
+
 
 int main(int argc,char** argv)
 {
@@ -23,7 +32,6 @@ int main(int argc,char** argv)
 		return 0;
 	}
 	std::string inFile = argv[1];
-	std::string outFile = argv[2];
 	std::string inFormat = grabFileExt(inFile);
 	if (!inFormat.compare("ltb")) 
 	{
@@ -31,7 +39,18 @@ int main(int argc,char** argv)
 		printf("Only Support .ltb format !\n");
 		return 0;
 	}
-	std::string outFormat = grabFileExt(outFile);
+	std::string outFile;
+	std::string outFormat;
+	if (argc > 2) 
+	{
+		outFile = argv[2];
+		outFormat = grabFileExt(outFile);
+	}
+	else 
+	{
+		outFile = replaceFileExt(inFile,"fbx");
+		outFormat = "fbx";
+	}
 	Converter* converter = new Converter();
 	converter->SetExportFormat(outFormat);
 	int ret = converter->ConvertSingleLTBFile(inFile, outFile);
