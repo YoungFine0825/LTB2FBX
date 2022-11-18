@@ -9,6 +9,8 @@ std::string grabFileExt(std::string filePath)
 	int lastDot = filePath.find_last_of('.', 0);
 	int dotIndex = max(firstDot,lastDot);
 	std::string ext = filePath.substr(dotIndex + 1, filePath.length() - dotIndex);
+	for (auto& c : ext) 
+		c = tolower(c);
 	return ext;
 }
 
@@ -33,12 +35,6 @@ int main(int argc,char** argv)
 	}
 	std::string inFile = argv[1];
 	std::string inFormat = grabFileExt(inFile);
-	if (!inFormat.compare("ltb")) 
-	{
-		printf("输入文件仅支持 .ltb 格式 !\n");
-		printf("Only Support .ltb format !\n");
-		return 0;
-	}
 	std::string outFile;
 	std::string outFormat;
 	if (argc > 2) 
@@ -50,6 +46,19 @@ int main(int argc,char** argv)
 	{
 		outFile = replaceFileExt(inFile,"fbx");
 		outFormat = "fbx";
+	}
+	printf("LTB2FBX: %s --> %s\n", inFile.c_str(), outFile.c_str());
+	if (inFormat.compare("ltb") != 0)
+	{
+		printf("输入文件仅支持 .ltb 格式 !\n");
+		printf("Input file must be .ltb format !\n");
+		return 0;
+	}
+	if (outFormat.compare("ltb") == 0)
+	{
+		printf("不支持输出 .ltb 格式 !\n");
+		printf("Cannot export .ltb format file !\n");
+		return 0;
 	}
 	Converter* converter = new Converter();
 	converter->SetExportFormat(outFormat);

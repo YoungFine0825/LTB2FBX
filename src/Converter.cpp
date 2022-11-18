@@ -83,14 +83,21 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	//
 	const unsigned int numMeshes = m_meshesPtrVec.size();
 	exportScene->mNumMeshes = numMeshes;
-	exportScene->mMeshes = &m_meshesPtrVec[0];
+	if (numMeshes > 0) 
+	{
+		exportScene->mMeshes = &m_meshesPtrVec[0];
+	}
 	//
-	exportScene->mMaterials = &m_materialsPtrList[0];
-	exportScene->mNumMaterials = m_materialsPtrList.size();
+	unsigned int numMaterials = m_materialsPtrList.size();
+	exportScene->mNumMaterials = numMaterials;
+	if (numMaterials > 0) 
+	{
+		exportScene->mMaterials = &m_materialsPtrList[0];
+	}
 	//
 	for (size_t i = 0; i < numMeshes; ++i)
 	{
-		aiNode* meshSceneNode = new aiNode();
+		Node* meshSceneNode = new Node();
 		meshSceneNode->mName = m_meshesPtrVec[i]->mName;
 		meshSceneNode->mNumMeshes = 1;
 		meshSceneNode->mMeshes = new unsigned int[1];
@@ -98,11 +105,15 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 		exportScene->mRootNode->addChildren(1, &meshSceneNode);
 	}
 	//
-	aiNode* skeNodeArrHead = &m_skeletonNodes[0];
+	Node* skeNodeArrHead = &m_skeletonNodes[0];
 	exportScene->mRootNode->addChildren(1, &skeNodeArrHead);
 	//
-	exportScene->mNumAnimations = m_animPtrVec.size();
-	exportScene->mAnimations = &m_animPtrVec[0];
+	unsigned int numAnim = m_animPtrVec.size();
+	exportScene->mNumAnimations = numAnim;
+	if (numAnim > 0) 
+	{
+		exportScene->mAnimations = &m_animPtrVec[0];
+	}
 	//
 	exportScene->mNumCameras = 0;
 	exportScene->mNumLights = 0;
@@ -111,7 +122,7 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	printExportOverview(exportScene, ltbModel);
 	//
 	Assimp::Exporter exporter;
-	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath);
+	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath,aiProcess_MakeLeftHanded);
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -208,8 +219,8 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 			nodeAnim->mNumRotationKeys = numLTBKeyFrame;
 			nodeAnim->mRotationKeys = new aiQuatKey[numLTBKeyFrame]();
 			nodeAnim->mNumScalingKeys = 0;
-			nodeAnim->mPreState = aiAnimBehaviour_LINEAR;
-			nodeAnim->mPostState = aiAnimBehaviour_LINEAR;
+			//nodeAnim->mPreState = aiAnimBehaviour_LINEAR;
+			//nodeAnim->mPostState = aiAnimBehaviour_LINEAR;
 			//
 			LTBAnimNode* ltbAnimNode = ltbAnim->GetAnimNode(skeNodeIdx);
 			//printf("Anim Node %s\n", nodeAnim->mNodeName.data);
@@ -280,9 +291,14 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 		{
 			ModelVert ltbVert = draw->m_Verts[vIdx];
 			aiVector3D vert, uv, normal, tangent, bitangent;
-			vert.x = ltbVert.m_Vec.x; vert.y = ltbVert.m_Vec.y; vert.z = ltbVert.m_Vec.z;
-			uv.x = ltbVert.m_Uv.tu; uv.y = ltbVert.m_Uv.tv;
-			normal.x = ltbVert.m_Normal.x; normal.y = ltbVert.m_Normal.y; normal.z = ltbVert.m_Normal.z;
+			vert.x = ltbVert.m_Vec.x; 
+			vert.y = ltbVert.m_Vec.y; 
+			vert.z = ltbVert.m_Vec.z;
+			uv.x = ltbVert.m_Uv.tu; 
+			uv.y = ltbVert.m_Uv.tv;
+			normal.x = ltbVert.m_Normal.x; 
+			normal.y = ltbVert.m_Normal.y;
+			normal.z = ltbVert.m_Normal.z;
 			tangent.x = 0; tangent.y = 0; tangent.z = 0;
 			bitangent.x = 0; bitangent.y = 0; bitangent.z = 0;
 			vertices[vIdx] = vert;
@@ -297,7 +313,7 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 		{
 			ModelTri tri = draw->m_Tris[faceIdx];
 			faces[faceIdx].mNumIndices = 3;
-			faces[faceIdx].mIndices = new unsigned int[3]{ tri.m_Indices[0] ,tri.m_Indices[1] ,tri.m_Indices[2] };
+			faces[faceIdx].mIndices = new unsigned int[3]{ tri.m_Indices[2] ,tri.m_Indices[1] ,tri.m_Indices[0] };
 		}
 		//
 		mesh->mNumVertices = numVert;
@@ -321,6 +337,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 {
 	//
 	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
+	if (numMeshes <= 0) { return; }
 	//
 	map<string, unsigned int> createdBones;
 	//
@@ -402,6 +419,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 		m_bonesPtrArrPerMeshVec.push_back(bonesPtrVec);
 	}
 	//
+	//将剩余的骨骼（没有被绑定顶点和权重），添加到第一个Mesh下。
 	size_t numSkeNodes = m_skeletonNodes.size();
 	for (size_t si = 0; si < numSkeNodes; ++si) 
 	{
@@ -409,25 +427,17 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 		map<string, unsigned int>::iterator it = createdBones.find(skeNode->mName.data);
 		if (it == createdBones.end()) 
 		{
-			Node* parentNode = skeNode->mParent;
-			if (parentNode) 
+			Bone* bone = new Bone();
+			bone->mName.Set(skeNode->mName.data);
+			bone->mNumWeights = 0;
+			aiNode* sceneNode = getSkeletonNodeByName(skeNode->mName.data);
+			if (sceneNode)
 			{
-				map<string, unsigned int>::iterator parnetNodeIt = createdBones.find(parentNode->mName.data);
-				if (parnetNodeIt != createdBones.end())
-				{
-					unsigned int meshIdx = parnetNodeIt->second;
-					Bone* bone = new Bone();
-					bone->mName.Set(skeNode->mName.data);
-					aiNode* sceneNode = getSkeletonNodeByName(skeNode->mName.data);
-					if (sceneNode)
-					{
-						bone->mNode = sceneNode;
-						bone->mArmature = sceneNode;
-						bone->mOffsetMatrix = sceneNode->mTransformation;//recursCalcuMat(sceneNode);//
-					}
-					m_bonesPtrArrPerMeshVec[meshIdx].push_back(bone);
-				}
+				bone->mNode = sceneNode;
+				bone->mArmature = sceneNode;
+				bone->mOffsetMatrix = sceneNode->mTransformation;
 			}
+			m_bonesPtrArrPerMeshVec[0].push_back(bone);
 		}
 	}
 }
@@ -550,6 +560,7 @@ void Converter::SetExportFormat(string formatExt)
 void Converter::printExportOverview(ExportScene* exportScene,LTBModelPtr ltbModel)
 {
 	printf("-*- -*- -*- 摘要 -*- -*- -*-\n");
+	printf("* 输入文件名称：%s\n", ltbModel->GetFilename());
 	printf("* 导出格式：%s\n", m_exportFormat.c_str());
 	size_t numMeshes = m_meshesPtrVec.size();
 	printf("* 网格数量：%d\n", numMeshes);
