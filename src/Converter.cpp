@@ -17,6 +17,7 @@ typedef vector<aiFace> FaceList;
 typedef vector<aiVertexWeight> WeightList;
 typedef vector<aiNode> NodeList;
 typedef vector<aiNode*> NodePtrList;
+typedef map<string, vector<unsigned int>> BoneName2MeshIndices;
 
 Converter::Converter() 
 {
@@ -78,8 +79,12 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	grabMeshesFromLTB(ltbModel);
 	//
 	//exportScene->mFlags = AI_SCENE_FLAGS_ALLOW_SHARED;
-	exportScene->mRootNode = new aiNode();
+	exportScene->mRootNode = new Node();
 	exportScene->mRootNode->mName = ltbModel->GetFilename();
+	//
+	Node* modelRootNode = new Node();
+	modelRootNode->mName = "Root";
+	exportScene->mRootNode->addChildren(1,&modelRootNode);
 	//
 	const unsigned int numMeshes = m_meshesPtrVec.size();
 	exportScene->mNumMeshes = numMeshes;
@@ -102,11 +107,14 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 		meshSceneNode->mNumMeshes = 1;
 		meshSceneNode->mMeshes = new unsigned int[1];
 		meshSceneNode->mMeshes[0] = i;
-		exportScene->mRootNode->addChildren(1, &meshSceneNode);
+		modelRootNode->addChildren(1, &meshSceneNode);
 	}
 	//
-	Node* skeNodeArrHead = &m_skeletonNodes[0];
-	exportScene->mRootNode->addChildren(1, &skeNodeArrHead);
+	if (m_skeletonNodes.size() > 0) 
+	{
+		Node* skeNodeArrHead = &m_skeletonNodes[0];
+		modelRootNode->addChildren(1, &skeNodeArrHead);
+	}
 	//
 	unsigned int numAnim = m_animPtrVec.size();
 	exportScene->mNumAnimations = numAnim;
@@ -122,7 +130,7 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	printExportOverview(exportScene, ltbModel);
 	//
 	Assimp::Exporter exporter;
-	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath,aiProcess_MakeLeftHanded);
+	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath,aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -137,7 +145,7 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 	//
 	for (unsigned int nIdx = 0; nIdx < numNodes; ++nIdx)
 	{
-		aiNode* skeNode = new aiNode();
+		Node* skeNode = new Node();
 		ModelNode* ltbNode = ltbModel->GetNode(nIdx);
 		//
 		string nodeName = ltbNode->GetName();
@@ -157,15 +165,15 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 		m_skeletonNodes.push_back(*skeNode);
 	}
 	//
-	vector<vector<aiNode*>> childrenList(numNodes);
+	vector<vector<Node*>> childrenList(numNodes);
 	for (size_t nIdx = 0; nIdx < numNodes; ++nIdx) 
 	{
 		ModelNode* ltbNode = ltbModel->GetNode(nIdx);
 		if (ltbNode->m_iParentNode != NODEPARENT_NONE) 
 		{
 			ModelNode* parentLtbMode = ltbModel->GetNode(ltbNode->m_iParentNode);
-			aiNode* parentSkeNode = m_name2SkeNode[parentLtbMode->GetName()];
-			aiNode* skeNode = &m_skeletonNodes[nIdx];
+			Node* parentSkeNode = m_name2SkeNode[parentLtbMode->GetName()];
+			Node* skeNode = &m_skeletonNodes[nIdx];
 			skeNode->mParent = parentSkeNode;
 			childrenList[ltbNode->m_iParentNode].push_back(skeNode);
 		}
@@ -173,7 +181,7 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 	//
 	for (size_t nIdx = 0; nIdx < numNodes; ++nIdx)
 	{
-		aiNode* node = &m_skeletonNodes[nIdx];
+		Node* node = &m_skeletonNodes[nIdx];
 		size_t childCount = childrenList[nIdx].size();
 		if (childCount > 0) 
 		{
@@ -219,30 +227,25 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 			nodeAnim->mNumRotationKeys = numLTBKeyFrame;
 			nodeAnim->mRotationKeys = new aiQuatKey[numLTBKeyFrame]();
 			nodeAnim->mNumScalingKeys = 0;
-			//nodeAnim->mPreState = aiAnimBehaviour_LINEAR;
-			//nodeAnim->mPostState = aiAnimBehaviour_LINEAR;
 			//
 			LTBAnimNode* ltbAnimNode = ltbAnim->GetAnimNode(skeNodeIdx);
-			//printf("Anim Node %s\n", nodeAnim->mNodeName.data);
 			//
 			for (unsigned int k = 0; k < numLTBKeyFrame; ++k)
 			{
 				LTBAnimKeyFrame frame = ltbAnim->m_KeyFrames[k];
-				LTVector pos;
-				LTRotation quat;
+				LTVector pos(0,0,0);
+				LTRotation quat(0,0,0,1);
 				ltbAnimNode->GetData(k, pos, quat);
 				//
 				double frameTime = (double)frame.m_Time / toSecond;
 				aiVector3D nodePos(pos.x, pos.y, pos.z);
 				aiQuaternion nodeRot(quat.m_Quat[3], quat.m_Quat[0], quat.m_Quat[1], quat.m_Quat[2]);
-				nodeAnim->mPositionKeys[k].mTime = frameTime;
-				nodeAnim->mPositionKeys[k].mValue = nodePos;
 				//
-				nodeAnim->mRotationKeys[k].mTime = frameTime;
-				nodeAnim->mRotationKeys[k].mValue = nodeRot;
+				aiVectorKey posKey(frameTime,nodePos);
+				nodeAnim->mPositionKeys[k] = posKey;
 				//
-				//printf("   KeyFrame%d  x=%f y=%f z=%f \n", k, nodePos.x, nodePos.y, nodePos.z);
-				//printf("   KeyFrame%d  w=%f x=%f y=%f z=%f \n", k, nodeRot.w, nodeRot.x, nodeRot.y, nodeRot.z);
+				aiQuatKey rotKey(frameTime,nodeRot);
+				nodeAnim->mRotationKeys[k] = rotKey;
 			}
 			//
 			nodeAnimPtrVec->push_back(nodeAnim);
@@ -339,7 +342,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 	const unsigned int numMeshes = ltbModel->m_Pieces.GetSize();
 	if (numMeshes <= 0) { return; }
 	//
-	map<string, unsigned int> createdBones;
+	BoneName2MeshIndices createdBones;
 	//
 	for (unsigned int meshIdx = 0; meshIdx < numMeshes; ++meshIdx)
 	{
@@ -414,7 +417,15 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 			}
 			bonesPtrVec.push_back(bone);
 			//
-			createdBones[boneName] = meshIdx;
+			BoneName2MeshIndices::iterator meshIdxIt = createdBones.find(boneName);
+			if (meshIdxIt == createdBones.end()) 
+			{
+				createdBones[boneName] = vector<unsigned int>(1,meshIdx);
+			}
+			else 
+			{
+				createdBones[boneName].push_back(meshIdx);
+			}
 		}
 		m_bonesPtrArrPerMeshVec.push_back(bonesPtrVec);
 	}
@@ -424,7 +435,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 	for (size_t si = 0; si < numSkeNodes; ++si) 
 	{
 		Node* skeNode = &m_skeletonNodes[si];
-		map<string, unsigned int>::iterator it = createdBones.find(skeNode->mName.data);
+		BoneName2MeshIndices::iterator it = createdBones.find(skeNode->mName.data);
 		if (it == createdBones.end()) 
 		{
 			Bone* bone = new Bone();
@@ -438,6 +449,63 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 				bone->mOffsetMatrix = sceneNode->mTransformation;
 			}
 			m_bonesPtrArrPerMeshVec[0].push_back(bone);
+		}
+	}
+	//Îªsocket´´½¨¹Ç÷À
+	unsigned int numSockets = ltbModel->NumSockets();
+	for (size_t si = 0; si < numSockets; ++si)
+	{
+		ModelSocket* socket = ltbModel->GetSocket(si);
+		unsigned int skeNodeIdx = socket->m_iNode;
+		Node* parentNode = &m_skeletonNodes[skeNodeIdx];
+		if (!parentNode) 
+		{
+			continue;
+		}
+		string socketName = socket->m_pName;
+		LTMatrix translateMat;translateMat.Identity();
+		translateMat.SetTranslation(socket->m_Pos);
+		LTMatrix rotMat;
+		socket->m_Rot.ConvertToMatrix(rotMat);
+		LTMatrix scalingMat; scalingMat.Identity();
+		scalingMat.SetupScalingMatrix(socket->m_Scale);
+		LTMatrix ltTrans = translateMat * rotMat * scalingMat;
+		aiMatrix4x4 socketTrans(
+			ltTrans.m[0][0], ltTrans.m[0][1], ltTrans.m[0][2], ltTrans.m[0][3],
+			ltTrans.m[1][0], ltTrans.m[1][1], ltTrans.m[1][2], ltTrans.m[1][3],
+			ltTrans.m[2][0], ltTrans.m[2][1], ltTrans.m[2][2], ltTrans.m[2][3],
+			ltTrans.m[3][0], ltTrans.m[3][1], ltTrans.m[3][2], ltTrans.m[3][3]
+		);
+		
+		Node* socketNode = new Node();
+		m_skeletonNodes.push_back(*socketNode);
+		socketNode = &m_skeletonNodes[m_skeletonNodes.size() - 1];
+		socketNode->mName.Set("socket_" + socketName);
+		socketNode->mNumMeshes = 0;
+		socketNode->mNumChildren = 0;
+		socketNode->mParent = parentNode;
+		socketNode->mTransformation = socketTrans;
+		parentNode->addChildren(1, &socketNode);
+		//
+		Bone* socketBone = new Bone();
+		socketBone->mName.Set("socket_" + socketName);
+		socketBone->mNumWeights = 0;
+		socketBone->mNode = socketNode;
+		socketBone->mArmature = socketNode;
+		socketBone->mOffsetMatrix = socketTrans;
+		BoneName2MeshIndices::iterator it = createdBones.find(parentNode->mName.data);
+		if (it != createdBones.end()) 
+		{
+			vector<unsigned int> meshIndices = it->second;
+			for (size_t mi = 0; mi < meshIndices.size(); ++mi) 
+			{
+				unsigned int meshIdx = meshIndices[mi];
+				m_bonesPtrArrPerMeshVec[meshIdx].push_back(socketBone);
+			}
+		}
+		else 
+		{
+			m_bonesPtrArrPerMeshVec[0].push_back(socketBone);
 		}
 	}
 }

@@ -3,11 +3,28 @@
 #include "model.h"
 #include "Converter.h"
 
+int findLastOf(const std::string& str,char _Ch) 
+{
+	int ret = -1;
+	int charIndex = -1;
+	for (auto& c : str)
+	{
+		++charIndex;
+		if (c == _Ch)
+		{
+			ret = charIndex;
+		}
+	}
+	return ret;
+}
+
 std::string grabFileExt(std::string filePath) 
 {
-	int firstDot = filePath.find_first_of('.', 0);
-	int lastDot = filePath.find_last_of('.', 0);
-	int dotIndex = max(firstDot,lastDot);
+	int dotIndex = findLastOf(filePath, '.');
+	if (dotIndex == -1) 
+	{
+		return std::string("");
+	}
 	std::string ext = filePath.substr(dotIndex + 1, filePath.length() - dotIndex);
 	for (auto& c : ext) 
 		c = tolower(c);
@@ -16,9 +33,7 @@ std::string grabFileExt(std::string filePath)
 
 std::string replaceFileExt(std::string filePath, std::string ext)
 {
-	int firstDot = filePath.find_first_of('.', 0);
-	int lastDot = filePath.find_last_of('.', 0);
-	int dotIndex = max(firstDot, lastDot);
+	int dotIndex = findLastOf(filePath, '.');
 	std::string pathWithoutExt = filePath.substr(0, dotIndex);
 	return pathWithoutExt + '.' + ext;
 }
