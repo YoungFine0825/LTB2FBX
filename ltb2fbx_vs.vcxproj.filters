@@ -123,6 +123,39 @@
     <ClCompile Include="src\Converter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\dtxmgr.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\load_pcx.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\LTTexture.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\pixelformat.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\streamsim.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DtxConverter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\stdlith\abstractio.cpp">
+      <Filter>lithtech\stdlith</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\stdlith\fileio.cpp">
+      <Filter>lithtech\stdlith</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\stdlith\lithexception.cpp">
+      <Filter>lithtech\stdlith</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\stdlith\memory.cpp">
+      <Filter>lithtech\stdlith</Filter>
+    </ClCompile>
+    <ClCompile Include="lithtech\runtime\shared\dsys_interface.cpp">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lithtech\stdlith\dynarray.h">
@@ -286,6 +319,48 @@
     </ClInclude>
     <ClInclude Include="src\Converter.h">
       <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\sdk\ltpvalue.h">
+      <Filter>lithtech\sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\dtxmgr.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\load_pcx.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\LTTexture.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\pixelformat.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\streamsim.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\sysstreamsim.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DtxConverter.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\runtime\shared\ltcompat.h">
+      <Filter>lithtech\runtime\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\stdlith\abstractio.h">
+      <Filter>lithtech\stdlith</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\stdlith\fileio.h">
+      <Filter>lithtech\stdlith</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\stdlith\lithexception.h">
+      <Filter>lithtech\stdlith</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\stdlith\memory.h">
+      <Filter>lithtech\stdlith</Filter>
+    </ClInclude>
+    <ClInclude Include="lithtech\stdlith\stdlithdefs.h">
+      <Filter>lithtech\stdlith</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

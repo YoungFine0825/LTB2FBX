@@ -97,9 +97,3 @@ LTRESULT DosFileStream::Read(void *pData, uint32 size)
 	m_ErrorStatus = 1;
 	return LT_ERROR;
 }
-
-void dsi_PrintToConsole(const char* pMsg, ...) 
-{
-	printf(pMsg);
-	printf("\n");
-}

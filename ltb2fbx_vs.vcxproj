@@ -82,17 +82,17 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)bin\</OutDir>
-    <IncludePath>$(ProjectDir)lzma;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(ProjectDir)assimp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)lithtech\libs\dibmgr;$(ProjectDir)lzma;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(ProjectDir)assimp\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lzma;$(ProjectDir)assimp\lib\x64;$(LibraryPath)</LibraryPath>
-    <SourcePath>$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(SourcePath)</SourcePath>
+    <SourcePath>$(ProjectDir)lithtech\libs\dibmgr;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(SourcePath)</SourcePath>
     <TargetName>ltb2fbx</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)bin\</OutDir>
-    <IncludePath>$(ProjectDir)lzma;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(ProjectDir)assimp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)lithtech\libs\dibmgr;$(ProjectDir)lzma;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(ProjectDir)assimp\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lzma;$(ProjectDir)assimp\lib\x64;$(LibraryPath)</LibraryPath>
-    <SourcePath>$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(SourcePath)</SourcePath>
+    <SourcePath>$(ProjectDir)lithtech\libs\dibmgr;$(ProjectDir)lithtech\stdlith;$(ProjectDir)lithtech\sdk;$(ProjectDir)lithtech\runtime\shared;$(ProjectDir)lithtech\runtime\model;$(ProjectDir)lithtech\runtime\lithtemplate;$(ProjectDir)lithtech\runtime\kernel;$(SourcePath)</SourcePath>
     <TargetName>ltb2fbx</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -161,13 +161,23 @@
     <ClCompile Include="lithtech\runtime\model\model.cpp" />
     <ClCompile Include="lithtech\runtime\model\modelallocations.cpp" />
     <ClCompile Include="lithtech\runtime\model\model_load.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\dsys_interface.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\dtxmgr.cpp" />
     <ClCompile Include="lithtech\runtime\shared\engine_vars.cpp" />
     <ClCompile Include="lithtech\runtime\shared\genltstream.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\load_pcx.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\LTTexture.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\pixelformat.cpp" />
+    <ClCompile Include="lithtech\runtime\shared\streamsim.cpp" />
     <ClCompile Include="lithtech\sdk\LTEulerAngles.cpp" />
     <ClCompile Include="lithtech\sdk\ltquatbase.cpp" />
+    <ClCompile Include="lithtech\stdlith\abstractio.cpp" />
     <ClCompile Include="lithtech\stdlith\dynarray.cpp" />
+    <ClCompile Include="lithtech\stdlith\fileio.cpp" />
     <ClCompile Include="lithtech\stdlith\helpers.cpp" />
+    <ClCompile Include="lithtech\stdlith\lithexception.cpp" />
     <ClCompile Include="lithtech\stdlith\l_allocator.cpp" />
+    <ClCompile Include="lithtech\stdlith\memory.cpp" />
     <ClCompile Include="lzma\7zFile.c" />
     <ClCompile Include="lzma\7zStream.c" />
     <ClCompile Include="lzma\Alloc.c" />
@@ -179,6 +189,7 @@
     <ClCompile Include="lzma\LzmaEnc.c" />
     <ClCompile Include="lzma\Threads.c" />
     <ClCompile Include="src\Converter.cpp" />
+    <ClCompile Include="src\DtxConverter.cpp" />
     <ClCompile Include="src\LzmaDecoder.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
@@ -189,9 +200,16 @@
     <ClInclude Include="lithtech\runtime\model\model.h" />
     <ClInclude Include="lithtech\runtime\model\modelallocations.h" />
     <ClInclude Include="lithtech\runtime\shared\bdefs.h" />
+    <ClInclude Include="lithtech\runtime\shared\dtxmgr.h" />
     <ClInclude Include="lithtech\runtime\shared\gamemath.h" />
     <ClInclude Include="lithtech\runtime\shared\genltstream.h" />
+    <ClInclude Include="lithtech\runtime\shared\load_pcx.h" />
+    <ClInclude Include="lithtech\runtime\shared\ltcompat.h" />
+    <ClInclude Include="lithtech\runtime\shared\LTTexture.h" />
+    <ClInclude Include="lithtech\runtime\shared\pixelformat.h" />
     <ClInclude Include="lithtech\runtime\shared\renderobject.h" />
+    <ClInclude Include="lithtech\runtime\shared\streamsim.h" />
+    <ClInclude Include="lithtech\runtime\shared\sysstreamsim.h" />
     <ClInclude Include="lithtech\sdk\iltmemory.h" />
     <ClInclude Include="lithtech\sdk\iltstream.h" />
     <ClInclude Include="lithtech\sdk\lithtech.h" />
@@ -206,6 +224,7 @@
     <ClInclude Include="lithtech\sdk\ltmatrix.h" />
     <ClInclude Include="lithtech\sdk\ltmem.h" />
     <ClInclude Include="lithtech\sdk\ltplane.h" />
+    <ClInclude Include="lithtech\sdk\ltpvalue.h" />
     <ClInclude Include="lithtech\sdk\ltquatbase.h" />
     <ClInclude Include="lithtech\sdk\ltrect.h" />
     <ClInclude Include="lithtech\sdk\ltrendererstats.h" />
@@ -218,10 +237,15 @@
     <ClInclude Include="lithtech\sdk\physics\quaternion.h" />
     <ClInclude Include="lithtech\sdk\physics\vector.h" />
     <ClInclude Include="lithtech\sdk\sys\winoptim.h" />
+    <ClInclude Include="lithtech\stdlith\abstractio.h" />
     <ClInclude Include="lithtech\stdlith\dynarray.h" />
+    <ClInclude Include="lithtech\stdlith\fileio.h" />
     <ClInclude Include="lithtech\stdlith\genlist.h" />
     <ClInclude Include="lithtech\stdlith\helpers.h" />
+    <ClInclude Include="lithtech\stdlith\lithexception.h" />
     <ClInclude Include="lithtech\stdlith\l_allocator.h" />
+    <ClInclude Include="lithtech\stdlith\memory.h" />
+    <ClInclude Include="lithtech\stdlith\stdlithdefs.h" />
     <ClInclude Include="lzma\7zFile.h" />
     <ClInclude Include="lzma\7zTypes.h" />
     <ClInclude Include="lzma\7zVersion.h" />
@@ -236,6 +260,7 @@
     <ClInclude Include="lzma\Precomp.h" />
     <ClInclude Include="lzma\Threads.h" />
     <ClInclude Include="src\Converter.h" />
+    <ClInclude Include="src\DtxConverter.h" />
     <ClInclude Include="src\LzmaDecoder.h" />
   </ItemGroup>
   <ItemGroup>

@@ -136,9 +136,11 @@
 #include "gamemath.h"
 #endif
 
+#include "ltcompat.h"
+
+//
 
 // Helpful error output routines.
-
 void dsi_PrintToConsole(const char *pMsg, ...);
 void dsi_OnReturnError(int err);
 #define dsi_ConsolePrint dsi_PrintToConsole

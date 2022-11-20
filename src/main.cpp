@@ -2,6 +2,7 @@
 #include "de_file.h"
 #include "model.h"
 #include "Converter.h"
+#include "DtxConverter.h"
 
 int findLastOf(const std::string& str,char _Ch) 
 {
@@ -38,53 +39,75 @@ std::string replaceFileExt(std::string filePath, std::string ext)
 	return pathWithoutExt + '.' + ext;
 }
 
-
-int main(int argc,char** argv)
+void ConvertDTX(const std::string& inputFilePath,const std::string& inputFormat,int argc, char** argv)
 {
-	if (argc <= 1) 
-	{
-		printf("[输入文件路径]	     [输出文件路径]\n");
-		printf("[input file path]    [output file path]\n");
-		printf("example：res/model.ltb res/output/model.fbx\n");
-		return 0;
-	}
-	std::string inFile = argv[1];
-	std::string inFormat = grabFileExt(inFile);
 	std::string outFile;
 	std::string outFormat;
-	if (argc > 2) 
+	if (argc > 2)
 	{
 		outFile = argv[2];
 		outFormat = grabFileExt(outFile);
 	}
+	else
+	{
+		outFile = replaceFileExt(inputFilePath, "tga");
+		outFormat = "tga";
+	}
+	printf("Converting .DTX : %s -->> %s\n", inputFilePath.c_str(), outFile.c_str());
+	if (outFormat != "tga") 
+	{
+		printf("很抱歉，只支持将.dtx格式转换为.tga格式 !\n");
+		printf("Sorry,the output format must be \".tga\"! \n");
+		return;
+	}
+	int ret = DtxConverter::ConvertSingleDTXFile(outFormat, inputFilePath, outFile);
+	if (ret == 0) 
+	{
+		printf("转换成功！Convert Successful ! \n");
+	}
 	else 
 	{
-		outFile = replaceFileExt(inFile,"fbx");
+		printf("转换失败！Convert Failed ! \n");
+	}
+}
+
+void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat, int argc, char** argv)
+{
+	std::string outFile;
+	std::string outFormat;
+	if (argc > 2)
+	{
+		outFile = argv[2];
+		outFormat = grabFileExt(outFile);
+	}
+	else
+	{
+		outFile = replaceFileExt(inputFilePath, "fbx");
 		outFormat = "fbx";
 	}
-	printf("LTB2FBX: %s --> %s\n", inFile.c_str(), outFile.c_str());
-	if (inFormat.compare("ltb") != 0)
+	printf("Converting .LTB : %s -->> %s\n", inputFilePath.c_str(), outFile.c_str());
+	if (inputFormat.compare("ltb") != 0)
 	{
 		printf("输入文件仅支持 .ltb 格式 !\n");
-		printf("Input file must be .ltb format !\n");
-		return 0;
+		printf("The input file format must be \".ltb\" !\n");
+		return;
 	}
 	if (outFormat.compare("ltb") == 0)
 	{
 		printf("不支持输出 .ltb 格式 !\n");
-		printf("Cannot export .ltb format file !\n");
-		return 0;
+		printf("Cannot exporting \".ltb\" format !\n");
+		return;
 	}
 	Converter* converter = new Converter();
 	converter->SetExportFormat(outFormat);
-	int ret = converter->ConvertSingleLTBFile(inFile, outFile);
-	if (ret != CONVERT_RET_OK) 
+	int ret = converter->ConvertSingleLTBFile(inputFilePath, outFile);
+	if (ret != CONVERT_RET_OK)
 	{
-		if (ret == CONVERT_RET_INVALID_INPUT_FILE) 
+		if (ret == CONVERT_RET_INVALID_INPUT_FILE)
 		{
 			printf("打开输入文件失败！Open input file failed ! \n");
 		}
-		else if(ret == CONVERT_RET_LOADING_MODEL_FAILED) 
+		else if (ret == CONVERT_RET_LOADING_MODEL_FAILED)
 		{
 			printf("加载模型数据失败！Load .ltb model failed ! \n");
 		}
@@ -94,9 +117,36 @@ int main(int argc,char** argv)
 		}
 		printf("转换失败！Convert Failed ! \n");
 	}
-	else 
+	else
 	{
 		printf("转换成功！Convert Successful ! \n");
+	}
+}
+
+
+int main(int argc,char** argv)
+{
+	if (argc <= 1) 
+	{
+		printf("****************************************************************\n");
+		printf(" 用法1：在控制台中输入命令：\"ltb2fbx [输入文件路径]\"\n");
+		printf(" 用法2：在控制台中输入命令：\"ltb2fbx [输入文件路径] [输出文件路径]\"\n");
+		printf(" 用法3：将文件（.ltb或者.dtx）拖拽到可执行文件上。\n");
+		printf(" example 1：Type command line \"ltb2fbx res\\model.ltb\"	\n");
+		printf(" example 2：Type command line \"ltb2fbx res\\model.ltb res\\output\\model.fbx\"\n");
+		printf(" example 3：Drag the file(.ltb or .dtx) onto the executable file.\n");
+		printf("*****************************************************************\n");
+		return 0;
+	}
+	std::string inFile = argv[1];
+	std::string inFormat = grabFileExt(inFile);
+	if (inFormat == "dtx") 
+	{
+		ConvertDTX(inFile,inFormat,argc,argv);
+	}
+	else 
+	{
+		ConvertLTB(inFile, inFormat, argc, argv);
 	}
     return 0;   
 }
