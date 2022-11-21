@@ -36,6 +36,7 @@ int DtxConverter::ConvertSingleDTXFile(const std::string& format, const std::str
 	{
 		if (!DTX2TGAhandler(realInputFilePath.c_str(), outFilePath.c_str()))
 		{
+			delete decoder;
 			return DTX_CONVERT_FAILED;
 		}
 	}
@@ -43,6 +44,7 @@ int DtxConverter::ConvertSingleDTXFile(const std::string& format, const std::str
 	{
 		DTX2BPP_32Phandler(realInputFilePath.c_str(), outFilePath.c_str());
 	}
+	delete decoder;
 	return DTX_CONVERT_OK;
 }
 

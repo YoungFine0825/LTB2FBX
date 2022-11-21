@@ -101,6 +101,7 @@ void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat
 	Converter* converter = new Converter();
 	converter->SetExportFormat(outFormat);
 	int ret = converter->ConvertSingleLTBFile(inputFilePath, outFile);
+	delete converter;
 	if (ret != CONVERT_RET_OK)
 	{
 		if (ret == CONVERT_RET_INVALID_INPUT_FILE)
