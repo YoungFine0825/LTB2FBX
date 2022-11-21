@@ -1,27 +1,34 @@
 
 #include "DtxConverter.h"
-//#include "Texture.h"
 #include "dynarray.h"
 #include "fileio.h"
 #include <string>
 #include "LTTexture.h"
 
-#include "LzmaDecoder.h"
 
 #define DECODING_TEMP_FILE_PATH "__dtx_decoded.temp"
 
 FormatMgr g_FormatMgr;
 
+DtxConverter::DtxConverter() 
+{
+	m_lzmaDecoder = new LzmaDecoder();
+}
+
+DtxConverter::~DtxConverter() 
+{
+	m_lzmaDecoder->Destroy();
+}
+
 int DtxConverter::ConvertSingleDTXFile(const std::string& format, const std::string& inputFilePath, const std::string& outFilePath)
 {
-	LzmaDecoder* decoder = new LzmaDecoder();
 	FILE* f = fopen(DECODING_TEMP_FILE_PATH, "w");
 	if (f)
 	{
 		fclose(f);
 	}
 	//先尝试解压缩文件
-	int ret = decoder->Decode(inputFilePath.c_str(), DECODING_TEMP_FILE_PATH);
+	int ret = m_lzmaDecoder->Decode(inputFilePath.c_str(), DECODING_TEMP_FILE_PATH);
 	std::string realInputFilePath;
 	if (ret == DEC_RET_SUCCESSFUL)
 	{
@@ -36,7 +43,6 @@ int DtxConverter::ConvertSingleDTXFile(const std::string& format, const std::str
 	{
 		if (!DTX2TGAhandler(realInputFilePath.c_str(), outFilePath.c_str()))
 		{
-			delete decoder;
 			return DTX_CONVERT_FAILED;
 		}
 	}
@@ -44,7 +50,6 @@ int DtxConverter::ConvertSingleDTXFile(const std::string& format, const std::str
 	{
 		DTX2BPP_32Phandler(realInputFilePath.c_str(), outFilePath.c_str());
 	}
-	delete decoder;
 	return DTX_CONVERT_OK;
 }
 

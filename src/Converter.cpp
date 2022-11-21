@@ -3,7 +3,6 @@
 #include "assimp/Exporter.hpp"
 #include "assimp/postprocess.h"
 
-
 #include "Converter.h"
 
 #include <vector>
@@ -35,9 +34,9 @@ void Converter::releaseGrabbedData()
 	//
 	m_meshesPtrVec.clear();
 	//
+	m_skeletonNodes.clear();
 	m_name2SkeNode.clear();
 	m_name2SkeNodeIdx.clear();
-	m_skeletonNodes.clear();
 	//
 	m_bonesPtrArrPerMeshVec.clear();
 	//
@@ -56,7 +55,6 @@ int Converter::ConvertSingleLTBFile(const std::string& ltbFilePath, const std::s
 		return ret;
 	}
 	bool success = doConvertLTB(ltbModel, outFilePath);
-	//releaseGrabbedData();
 	if (!success)
 	{
 		return CONVERT_RET_EXPORT_LTB_2_FBX_FAILED;
@@ -112,8 +110,7 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	//
 	if (m_skeletonNodes.size() > 0) 
 	{
-		Node* skeNodeArrHead = &m_skeletonNodes[0];
-		modelRootNode->addChildren(1, &skeNodeArrHead);
+		modelRootNode->addChildren(1, &m_skeletonNodes[0]);
 	}
 	//
 	unsigned int numAnim = m_animPtrVec.size();
@@ -131,6 +128,9 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	//
 	Assimp::Exporter exporter;
 	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath,aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
+	//
+	releaseGrabbedData();
+	//
 	if (ret != aiReturn_SUCCESS) 
 	{
 		return false;
@@ -162,7 +162,7 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 		);
 		skeNode->mTransformation = mat;
 		//
-		m_skeletonNodes.push_back(*skeNode);
+		m_skeletonNodes.push_back(skeNode);
 	}
 	//
 	vector<vector<Node*>> childrenList(numNodes);
@@ -173,7 +173,7 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 		{
 			ModelNode* parentLtbMode = ltbModel->GetNode(ltbNode->m_iParentNode);
 			Node* parentSkeNode = m_name2SkeNode[parentLtbMode->GetName()];
-			Node* skeNode = &m_skeletonNodes[nIdx];
+			Node* skeNode = m_skeletonNodes[nIdx];
 			skeNode->mParent = parentSkeNode;
 			childrenList[ltbNode->m_iParentNode].push_back(skeNode);
 		}
@@ -181,7 +181,7 @@ void Converter::grabSkeletonNodesFromLTB(LTBModelPtr ltbModel)
 	//
 	for (size_t nIdx = 0; nIdx < numNodes; ++nIdx)
 	{
-		Node* node = &m_skeletonNodes[nIdx];
+		Node* node = m_skeletonNodes[nIdx];
 		size_t childCount = childrenList[nIdx].size();
 		if (childCount > 0) 
 		{
@@ -434,7 +434,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 	size_t numSkeNodes = m_skeletonNodes.size();
 	for (size_t si = 0; si < numSkeNodes; ++si) 
 	{
-		Node* skeNode = &m_skeletonNodes[si];
+		Node* skeNode = m_skeletonNodes[si];
 		BoneName2MeshIndices::iterator it = createdBones.find(skeNode->mName.data);
 		if (it == createdBones.end()) 
 		{
@@ -457,7 +457,7 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 	{
 		ModelSocket* socket = ltbModel->GetSocket(si);
 		unsigned int skeNodeIdx = socket->m_iNode;
-		Node* parentNode = &m_skeletonNodes[skeNodeIdx];
+		Node* parentNode = m_skeletonNodes[skeNodeIdx];
 		if (!parentNode) 
 		{
 			continue;
@@ -478,8 +478,8 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 		);
 		
 		Node* socketNode = new Node();
-		m_skeletonNodes.push_back(*socketNode);
-		socketNode = &m_skeletonNodes[m_skeletonNodes.size() - 1];
+		m_skeletonNodes.push_back(socketNode);
+		socketNode = m_skeletonNodes[m_skeletonNodes.size() - 1];
 		socketNode->mName.Set("socket_" + socketName);
 		socketNode->mNumMeshes = 0;
 		socketNode->mNumChildren = 0;

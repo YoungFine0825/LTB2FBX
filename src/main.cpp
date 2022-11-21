@@ -4,6 +4,15 @@
 #include "Converter.h"
 #include "DtxConverter.h"
 
+#include "boost/filesystem.hpp"
+
+using namespace boost::filesystem;
+
+typedef std::vector<std::string> FilePathVec;
+
+Converter* g_ltbConverter = new Converter();
+DtxConverter* g_dtxConverter = new DtxConverter();
+
 int findLastOf(const std::string& str,char _Ch) 
 {
 	int ret = -1;
@@ -60,7 +69,7 @@ void ConvertDTX(const std::string& inputFilePath,const std::string& inputFormat,
 		printf("Sorry,the output format must be \".tga\"! \n");
 		return;
 	}
-	int ret = DtxConverter::ConvertSingleDTXFile(outFormat, inputFilePath, outFile);
+	int ret = g_dtxConverter->ConvertSingleDTXFile(outFormat, inputFilePath, outFile);
 	if (ret == 0) 
 	{
 		printf("转换成功！Convert Successful ! \n");
@@ -98,10 +107,8 @@ void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat
 		printf("Cannot exporting \".ltb\" format !\n");
 		return;
 	}
-	Converter* converter = new Converter();
-	converter->SetExportFormat(outFormat);
-	int ret = converter->ConvertSingleLTBFile(inputFilePath, outFile);
-	delete converter;
+	g_ltbConverter->SetExportFormat(outFormat);
+	int ret = g_ltbConverter->ConvertSingleLTBFile(inputFilePath, outFile);
 	if (ret != CONVERT_RET_OK)
 	{
 		if (ret == CONVERT_RET_INVALID_INPUT_FILE)
@@ -124,30 +131,75 @@ void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat
 	}
 }
 
+void recurseAndCollectFilePath(path start, FilePathVec* filesVec)
+{
+	directory_iterator end;
+	directory_iterator dirIt(start);
+	for (dirIt; dirIt != end; ++dirIt)
+	{
+		path p = *dirIt;
+		//
+		if (is_directory(p)) 
+		{
+			recurseAndCollectFilePath(p, filesVec);
+		}
+		else 
+		{
+			path ext = p.extension();
+			if (ext == ".ltb" || ext == ".LTB" || ext == "dtx" || ext == ".DTX")
+			{
+				filesVec->push_back(p.string());
+			}
+		}
+	}
+}
+
+
 
 int main(int argc,char** argv)
 {
 	if (argc <= 1) 
 	{
 		printf("****************************************************************\n");
-		printf(" 用法1：在控制台中输入命令：\"ltb2fbx [输入文件路径]\"\n");
-		printf(" 用法2：在控制台中输入命令：\"ltb2fbx [输入文件路径] [输出文件路径]\"\n");
-		printf(" 用法3：将文件（.ltb或者.dtx）拖拽到可执行文件上。\n");
-		printf(" example 1：Type command line \"ltb2fbx res\\model.ltb\"	\n");
-		printf(" example 2：Type command line \"ltb2fbx res\\model.ltb res\\output\\model.fbx\"\n");
-		printf(" example 3：Drag the file(.ltb or .dtx) onto the executable file.\n");
+		printf(" 用法1：在控制台中输入命令：\"ltb2fbx [输入文件路径] [输出文件路径]\"\n");
+		printf(" 用法2：将文件（.ltb或者.dtx）或目录拖拽到可执行文件上。\n");
+		printf(" example 1：Type command line \"ltb2fbx res\\model.ltb res\\output\\model.fbx\"\n");
+		printf(" example 2：Drag the file(.ltb or .dtx) or directory onto the executable file.\n");
 		printf("*****************************************************************\n");
 		return 0;
 	}
 	std::string inFile = argv[1];
-	std::string inFormat = grabFileExt(inFile);
-	if (inFormat == "dtx") 
+	bool isDir = boost::filesystem::is_directory(inFile);
+	//
+	FilePathVec filesVec;
+	if (isDir) 
 	{
-		ConvertDTX(inFile,inFormat,argc,argv);
+		path src_path(inFile);
+		recurseAndCollectFilePath(src_path, &filesVec);
+		if (filesVec.size() <= 0)
+		{
+			printf("没有可转换的文件（.lbt 或.dtx） !\n");
+			printf("There is no file（.ltb or .dtx） available to convert !\n");
+			return 0;
+		}
 	}
 	else 
 	{
-		ConvertLTB(inFile, inFormat, argc, argv);
+		filesVec.push_back(inFile);
+	}
+	//
+	for (size_t i = 0; i < filesVec.size(); ++i) 
+	{
+		printf("\n\n");
+		std::string inFormat = grabFileExt(filesVec[i]);
+		if (inFormat == "dtx")
+		{
+			ConvertDTX(filesVec[i], inFormat, argc, argv);
+		}
+		else
+		{
+			ConvertLTB(filesVec[i], inFormat, argc, argv);
+		}
 	}
     return 0;   
 }

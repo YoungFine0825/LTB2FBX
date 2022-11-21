@@ -7,6 +7,7 @@
 #include "streamsim.h"
 #include "load_pcx.h"
 
+#include "LzmaDecoder.h"
 enum
 {
 	DTX_CONVERT_OK = 0,
@@ -18,7 +19,12 @@ enum
 class DtxConverter
 {
 public:
-	static int ConvertSingleDTXFile(const std::string& format,const std::string& inputFilePath, const std::string& outFilePath);
-	static BOOL 		DTX2TGAhandler(const char* inputfile, const char* outputfile);
-	static void 		DTX2BPP_32Phandler(const char* inputfile, const char* outputfile);
+	DtxConverter();
+	~DtxConverter();
+	int ConvertSingleDTXFile(const std::string& format,const std::string& inputFilePath, const std::string& outFilePath);
+	BOOL 		DTX2TGAhandler(const char* inputfile, const char* outputfile);
+	void 		DTX2BPP_32Phandler(const char* inputfile, const char* outputfile);
+private:
+	//
+	LzmaDecoder* m_lzmaDecoder;
 };

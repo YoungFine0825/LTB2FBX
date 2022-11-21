@@ -33,6 +33,7 @@ typedef aiScene ExportScene;
 typedef aiMesh Mesh;
 //
 typedef aiNode Node;
+typedef std::vector<Node*> NodesPtrVec;
 //
 typedef aiBone Bone;
 typedef std::vector<Bone> BonesVec;
@@ -85,7 +86,7 @@ private:
 	//
 	std::vector<Mesh*> m_meshesPtrVec;
 	//
-	std::vector<Node> m_skeletonNodes;
+	NodesPtrVec m_skeletonNodes;
 	std::map<std::string, Node*> m_name2SkeNode;
 	std::map<std::string, int> m_name2SkeNodeIdx;
 	//
