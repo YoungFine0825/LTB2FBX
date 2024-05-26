@@ -1,0 +1,1 @@
+py ./ltb2lta.py %1
