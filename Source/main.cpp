@@ -81,12 +81,39 @@ void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat
 {
 	std::string outFile;
 	std::string outFormat;
+	bool useDefaultFbxFormat = true;
 	if (argc > 2)
 	{
-		outFile = argv[2];
-		outFormat = grabFileExt(outFile);
+		ConverterSetting setting;
+		for (int i = 2; i < argc; ++i)
+		{
+			std::string option = argv[i];
+			if (option.compare("-singleAnimFile") == 0)
+			{
+				setting.SingleAnimFile = true;
+			}
+			else if (option.compare("-ignoreMeshes") == 0)
+			{
+				setting.IgnoreMeshes = true;
+			}
+			else if (option.compare("-ignoreAnimations") == 0)
+			{
+				setting.IgnoreAnimations = true;
+			}
+			else 
+			{
+				//如果这个命令行参数不是任何一个option，我们就认为它是输出文件路径
+				outFile = argv[i];
+				outFormat = grabFileExt(outFile);
+				if (outFormat.size() > 0)
+				{
+					useDefaultFbxFormat = false;
+				}
+			}
+		}
+		g_ltbConverter->SetConvertSetting(setting);
 	}
-	else
+	if (useDefaultFbxFormat) 
 	{
 		outFile = replaceFileExt(inputFilePath, "fbx");
 		outFormat = "fbx";
@@ -105,6 +132,7 @@ void ConvertLTB(const std::string& inputFilePath, const std::string& inputFormat
 		return;
 	}
 	g_ltbConverter->SetExportFormat(outFormat);
+	//
 	int ret = g_ltbConverter->ConvertSingleLTBFile(inputFilePath, outFile);
 	if (ret != CONVERT_RET_OK)
 	{
@@ -158,10 +186,14 @@ int main(int argc,char** argv)
 	if (argc <= 1) 
 	{
 		printf("****************************************************************\n");
-		printf(" 用法1：在控制台中输入命令：\"ltb2fbx [输入文件路径] [输出文件路径]\"\n");
+		printf(" 用法1：在控制台中输入命令：\"ltb2fbx [输入文件路径] [输出文件路径] [options] [option] ...\"\n");
 		printf(" 用法2：将文件（.ltb或者.dtx）或目录拖拽到可执行文件上。\n");
 		printf(" example 1：Type command line \"ltb2fbx res\\model.ltb res\\output\\model.fbx\"\n");
 		printf(" example 2：Drag the file(.ltb or .dtx) or directory onto the executable file.\n");
+		printf(" options: \n");
+		printf("		-singleAnimFile		每个动画导出为独立的文件 \n");
+		printf("		-ignoreMeshes		不导出网格 \n");
+		printf("		-ignoreAnimations	不导出动画 \n");
 		printf("*****************************************************************\n");
 		return 0;
 	}

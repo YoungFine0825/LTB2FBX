@@ -21,9 +21,16 @@
     4、cmake --build build --target ltb2fbx
 
     构建完成后，会将可执行文件拷贝到Test目录下。
-  
+
 ### Usage
+
     将.ltb/.dtx文件或包含.ltb/.dtx文件的文件夹拖拽到可执行文件图标上即可。
+    或使用命令行方式：
+        ltb2fbx Model.LTB [Model.fbx] [option] [option] [option] ...
+    options:
+        -singleAnimFile        每个动画导出为单个文件
+        -ignoreMeshes          不导出网格
+        -ignoreAnimations      不导出动画
 
 ### 注意：
 

@@ -48,6 +48,13 @@ typedef aiNodeAnim NodeAnimation;
 typedef std::vector<NodeAnimation*> NodeAnimationsPtrVec;
 //
 
+struct ConverterSetting
+{
+	bool SingleAnimFile = false;
+	bool IgnoreMeshes = false;
+	bool IgnoreAnimations = false;
+};
+
 class Converter
 {
 public:
@@ -57,6 +64,7 @@ public:
 	int ConvertSingleLTBFile(const std::string& inputFilePath, const std::string& outFilePath);
 	int LoadLTBModel(const std::string& modelFilePath, LTBModelPtr ltbModel);
 	void SetExportFormat(std::string formatExt);
+	void SetConvertSetting(ConverterSetting setting);
 private:
 	bool readLTBHeader(LTB_Header* head, DosFileStream* stream);
 
@@ -100,4 +108,6 @@ private:
 	int m_maxNumOutputAnim = -1;
 	//
 	std::string m_exportFormat = "fbx";
+
+	ConverterSetting m_setting;
 };

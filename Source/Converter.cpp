@@ -5,6 +5,7 @@
 
 #include "Converter.h"
 
+#include <filesystem>
 #include <vector>
 
 #define DECODING_TEMP_FILE_PATH "__ltb_decoded.temp"
@@ -85,11 +86,6 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	exportScene->mRootNode->addChildren(1,&modelRootNode);
 	//
 	const unsigned int numMeshes = m_meshesPtrVec.size();
-	exportScene->mNumMeshes = numMeshes;
-	if (numMeshes > 0) 
-	{
-		exportScene->mMeshes = &m_meshesPtrVec[0];
-	}
 	//
 	unsigned int numMaterials = m_materialsPtrList.size();
 	exportScene->mNumMaterials = numMaterials;
@@ -98,14 +94,23 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 		exportScene->mMaterials = &m_materialsPtrList[0];
 	}
 	//
-	for (size_t i = 0; i < numMeshes; ++i)
+	if (!m_setting.IgnoreMeshes) 
 	{
-		Node* meshSceneNode = new Node();
-		meshSceneNode->mName = m_meshesPtrVec[i]->mName;
-		meshSceneNode->mNumMeshes = 1;
-		meshSceneNode->mMeshes = new unsigned int[1];
-		meshSceneNode->mMeshes[0] = i;
-		modelRootNode->addChildren(1, &meshSceneNode);
+		exportScene->mNumMeshes = numMeshes;
+		if (numMeshes > 0)
+		{
+			exportScene->mMeshes = &m_meshesPtrVec[0];
+		}
+		//
+		for (size_t i = 0; i < numMeshes; ++i)
+		{
+			Node* meshSceneNode = new Node();
+			meshSceneNode->mName = m_meshesPtrVec[i]->mName;
+			meshSceneNode->mNumMeshes = 1;
+			meshSceneNode->mMeshes = new unsigned int[1];
+			meshSceneNode->mMeshes[0] = i;
+			modelRootNode->addChildren(1, &meshSceneNode);
+		}
 	}
 	//
 	if (m_skeletonNodes.size() > 0) 
@@ -113,11 +118,15 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 		modelRootNode->addChildren(1, &m_skeletonNodes[0]);
 	}
 	//
-	unsigned int numAnim = m_animPtrVec.size();
-	exportScene->mNumAnimations = numAnim;
-	if (numAnim > 0) 
+	unsigned int numAnim = 0;
+	if (!m_setting.IgnoreAnimations) 
 	{
-		exportScene->mAnimations = &m_animPtrVec[0];
+		numAnim = m_animPtrVec.size();
+		exportScene->mNumAnimations = numAnim;
+		if (numAnim > 0)
+		{
+			exportScene->mAnimations = &m_animPtrVec[0];
+		}
 	}
 	//
 	exportScene->mNumCameras = 0;
@@ -127,7 +136,30 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 	printExportOverview(exportScene, ltbModel);
 	//
 	Assimp::Exporter exporter;
-	aiReturn ret = exporter.Export(exportScene, m_exportFormat, outFilePath,aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
+	aiReturn ret;
+	//
+	if (m_setting.SingleAnimFile && numAnim > 0) 
+	{
+		//每个动画单独导出为一个文件
+		std::filesystem::path outFilePathWithoutExt = outFilePath;
+		outFilePathWithoutExt.replace_extension();
+		std::string animFolder = outFilePathWithoutExt.string() + "_anims";
+		std::filesystem::create_directory(animFolder);
+		for (unsigned int i = 0; i < numAnim; ++i) 
+		{
+			exportScene->mNumAnimations = 1;
+			exportScene->mAnimations = &m_animPtrVec[i];
+			std::string animName = m_animPtrVec[i]->mName.C_Str();
+			std::string outAnimFilePath = animFolder + "/" + animName + "." + m_exportFormat;
+			printf("导出动画: %s \n", animName.c_str());
+			ret = exporter.Export(exportScene, m_exportFormat, outAnimFilePath, aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
+		}
+		//
+		exportScene->mNumAnimations = 0;
+		exportScene->mAnimations = nullptr;
+	}
+	//
+	ret = exporter.Export(exportScene, m_exportFormat, outFilePath, aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
 	//
 	releaseGrabbedData();
 	//
@@ -623,6 +655,11 @@ bool Converter::decodingLTBFile(const std::string& ltbFilePath, DosFileStream* f
 void Converter::SetExportFormat(string formatExt) 
 {
 	m_exportFormat = formatExt;
+}
+
+void Converter::SetConvertSetting(ConverterSetting setting) 
+{
+	m_setting = setting;
 }
 
 void Converter::printExportOverview(ExportScene* exportScene,LTBModelPtr ltbModel)
