@@ -94,23 +94,19 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 		exportScene->mMaterials = &m_materialsPtrList[0];
 	}
 	//
-	if (!m_setting.IgnoreMeshes) 
+	exportScene->mNumMeshes = numMeshes;
+	if (numMeshes > 0)
 	{
-		exportScene->mNumMeshes = numMeshes;
-		if (numMeshes > 0)
-		{
-			exportScene->mMeshes = &m_meshesPtrVec[0];
-		}
-		//
-		for (size_t i = 0; i < numMeshes; ++i)
-		{
-			Node* meshSceneNode = new Node();
-			meshSceneNode->mName = m_meshesPtrVec[i]->mName;
-			meshSceneNode->mNumMeshes = 1;
-			meshSceneNode->mMeshes = new unsigned int[1];
-			meshSceneNode->mMeshes[0] = i;
-			modelRootNode->addChildren(1, &meshSceneNode);
-		}
+		exportScene->mMeshes = &m_meshesPtrVec[0];
+	}
+	for (size_t i = 0; i < numMeshes; ++i)
+	{
+		Node* meshSceneNode = new Node();
+		meshSceneNode->mName = m_meshesPtrVec[i]->mName;
+		meshSceneNode->mNumMeshes = 1;
+		meshSceneNode->mMeshes = new unsigned int[1];
+		meshSceneNode->mMeshes[0] = i;
+		modelRootNode->addChildren(1, &meshSceneNode);
 	}
 	//
 	if (m_skeletonNodes.size() > 0) 
@@ -152,7 +148,7 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 			std::string animName = m_animPtrVec[i]->mName.C_Str();
 			std::string outAnimFilePath = animFolder + "/" + animName + "." + m_exportFormat;
 			printf("µ¼³ö¶¯»­: %s \n", animName.c_str());
-			ret = exporter.Export(exportScene, m_exportFormat, outAnimFilePath, aiProcess_MakeLeftHanded | aiProcess_GenBoundingBoxes);
+			ret = exporter.Export(exportScene, m_exportFormat, outAnimFilePath, aiProcess_MakeLeftHanded|aiProcess_GenBoundingBoxes|aiProcess_OptimizeMeshes);
 		}
 		//
 		exportScene->mNumAnimations = 0;
@@ -314,52 +310,56 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 		size_t numVert = draw->m_Verts.GetSize();
 		//
 		Mesh* mesh = new Mesh();
-		mesh->mPrimitiveTypes = aiPrimitiveType_TRIANGLE;
+
 		mesh->mName.Set(piece->GetName());
 		//
-		aiVector3D* vertices = new aiVector3D[numVert]();
-		aiVector3D* normals = new aiVector3D[numVert]();
-		aiVector3D* uvs = new aiVector3D[numVert]();
-		aiVector3D* tangents = new aiVector3D[numVert]();
-		aiVector3D* bitangents = new aiVector3D[numVert]();
-		for (size_t vIdx = 0; vIdx < numVert; ++vIdx)
+		if (!m_setting.IgnoreMeshes)
 		{
-			ModelVert ltbVert = draw->m_Verts[vIdx];
-			aiVector3D vert, uv, normal, tangent, bitangent;
-			vert.x = ltbVert.m_Vec.x; 
-			vert.y = ltbVert.m_Vec.y; 
-			vert.z = ltbVert.m_Vec.z;
-			uv.x = ltbVert.m_Uv.tu; 
-			uv.y = ltbVert.m_Uv.tv;
-			normal.x = ltbVert.m_Normal.x; 
-			normal.y = ltbVert.m_Normal.y;
-			normal.z = ltbVert.m_Normal.z;
-			tangent.x = 0; tangent.y = 0; tangent.z = 0;
-			bitangent.x = 0; bitangent.y = 0; bitangent.z = 0;
-			vertices[vIdx] = vert;
-			normals[vIdx] = normal;
-			uvs[vIdx] = uv;
-			tangents[vIdx] = tangent;
-			bitangents[vIdx] = bitangent;
+			mesh->mPrimitiveTypes = aiPrimitiveType_TRIANGLE;
+			aiVector3D* vertices = new aiVector3D[numVert]();
+			aiVector3D* normals = new aiVector3D[numVert]();
+			aiVector3D* uvs = new aiVector3D[numVert]();
+			aiVector3D* tangents = new aiVector3D[numVert]();
+			aiVector3D* bitangents = new aiVector3D[numVert]();
+			for (size_t vIdx = 0; vIdx < numVert; ++vIdx)
+			{
+				ModelVert ltbVert = draw->m_Verts[vIdx];
+				aiVector3D vert, uv, normal, tangent, bitangent;
+				vert.x = ltbVert.m_Vec.x; 
+				vert.y = ltbVert.m_Vec.y; 
+				vert.z = ltbVert.m_Vec.z;
+				uv.x = ltbVert.m_Uv.tu; 
+				uv.y = ltbVert.m_Uv.tv;
+				normal.x = ltbVert.m_Normal.x; 
+				normal.y = ltbVert.m_Normal.y;
+				normal.z = ltbVert.m_Normal.z;
+				tangent.x = 0; tangent.y = 0; tangent.z = 0;
+				bitangent.x = 0; bitangent.y = 0; bitangent.z = 0;
+				vertices[vIdx] = vert;
+				normals[vIdx] = normal;
+				uvs[vIdx] = uv;
+				tangents[vIdx] = tangent;
+				bitangents[vIdx] = bitangent;
+			}
+			size_t numTri = draw->m_Tris.GetSize();
+			aiFace* faces = new aiFace[numTri]();
+			for (size_t faceIdx = 0; faceIdx < numTri; ++faceIdx)
+			{
+				ModelTri tri = draw->m_Tris[faceIdx];
+				faces[faceIdx].mNumIndices = 3;
+				faces[faceIdx].mIndices = new unsigned int[3]{ tri.m_Indices[2] ,tri.m_Indices[1] ,tri.m_Indices[0] };
+			}
+			//
+			mesh->mNumVertices = numVert;
+			mesh->mVertices = vertices;
+			mesh->mNormals = normals;
+			mesh->mTextureCoords[0] = uvs;
+			mesh->mNumUVComponents[0] = 2;
+			mesh->mTangents = tangents;
+			mesh->mBitangents = bitangents;
+			mesh->mFaces = faces;
+			mesh->mNumFaces = numTri;
 		}
-		size_t numTri = draw->m_Tris.GetSize();
-		aiFace* faces = new aiFace[numTri]();
-		for (size_t faceIdx = 0; faceIdx < numTri; ++faceIdx)
-		{
-			ModelTri tri = draw->m_Tris[faceIdx];
-			faces[faceIdx].mNumIndices = 3;
-			faces[faceIdx].mIndices = new unsigned int[3]{ tri.m_Indices[2] ,tri.m_Indices[1] ,tri.m_Indices[0] };
-		}
-		//
-		mesh->mNumVertices = numVert;
-		mesh->mVertices = vertices;
-		mesh->mNormals = normals;
-		mesh->mTextureCoords[0] = uvs;
-		mesh->mNumUVComponents[0] = 2;
-		mesh->mTangents = tangents;
-		mesh->mBitangents = bitangents;
-		mesh->mFaces = faces;
-		mesh->mNumFaces = numTri;
 		mesh->mNumBones = m_bonesPtrArrPerMeshVec[meshIdx].size();
 		mesh->mBones = &m_bonesPtrArrPerMeshVec[meshIdx][0];
 		mesh->mNumAnimMeshes = 0;
@@ -427,17 +427,20 @@ void Converter::grabBonesPerMeshFromLTB(LTBModelPtr ltbModel)
 			bone->mName.Set(boneName.c_str());
 			//
 			map<string, WeightList>::iterator i = weights.find(boneName);
-			if (i != weights.end())
+			if (!m_setting.IgnoreMeshes) 
 			{
-				unsigned int numWei = i->second.size();
-				aiVertexWeight* weiArray = new aiVertexWeight[numWei]();
-				for (size_t wIdx = 0; wIdx < numWei; ++wIdx) 
+				if (i != weights.end())
 				{
-					weiArray[wIdx].mVertexId = i->second[wIdx].mVertexId;
-					weiArray[wIdx].mWeight = i->second[wIdx].mWeight;
+					unsigned int numWei = i->second.size();
+					aiVertexWeight* weiArray = new aiVertexWeight[numWei]();
+					for (size_t wIdx = 0; wIdx < numWei; ++wIdx)
+					{
+						weiArray[wIdx].mVertexId = i->second[wIdx].mVertexId;
+						weiArray[wIdx].mWeight = i->second[wIdx].mWeight;
+					}
+					bone->mNumWeights = numWei;
+					bone->mWeights = weiArray;
 				}
-				bone->mNumWeights = numWei;
-				bone->mWeights = weiArray;
 			}
 			//
 			aiNode* sceneNode = getSkeletonNodeByName(boneName);
