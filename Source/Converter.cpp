@@ -148,7 +148,7 @@ bool Converter::doConvertLTB(LTBModelPtr ltbModel, std::string outFilePath)
 			std::string animName = m_animPtrVec[i]->mName.C_Str();
 			std::string outAnimFilePath = animFolder + "/" + animName + "." + m_exportFormat;
 			printf("µ¼³ö¶¯»­: %s \n", animName.c_str());
-			ret = exporter.Export(exportScene, m_exportFormat, outAnimFilePath, aiProcess_MakeLeftHanded|aiProcess_GenBoundingBoxes|aiProcess_OptimizeMeshes);
+			ret = exporter.Export(exportScene, m_exportFormat, outAnimFilePath, aiProcess_MakeLeftHanded|aiProcess_GenBoundingBoxes);
 		}
 		//
 		exportScene->mNumAnimations = 0;
@@ -249,21 +249,54 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 		for (size_t skeNodeIdx = 0; skeNodeIdx < numSkeNodes; ++skeNodeIdx)
 		{
 			NodeAnimation* nodeAnim = new NodeAnimation();
-			nodeAnim->mNodeName = ltbModel->GetNode(skeNodeIdx)->GetName();
-			nodeAnim->mNumPositionKeys = numLTBKeyFrame;
-			nodeAnim->mPositionKeys = new aiVectorKey[numLTBKeyFrame]();
-			nodeAnim->mNumRotationKeys = numLTBKeyFrame;
-			nodeAnim->mRotationKeys = new aiQuatKey[numLTBKeyFrame]();
-			nodeAnim->mNumScalingKeys = 0;
-			//
 			LTBAnimNode* ltbAnimNode = ltbAnim->GetAnimNode(skeNodeIdx);
 			//
-			for (unsigned int k = 0; k < numLTBKeyFrame; ++k)
+			std::vector<unsigned int> avaliableKeyFrameIdx;
+			LTVector prePos(0, 0, 0);
+			LTRotation preQuat(0, 0, 0, 1);
+			for (unsigned int k = 0; k < numLTBKeyFrame; ++k) 
 			{
 				LTBAnimKeyFrame frame = ltbAnim->m_KeyFrames[k];
+				LTVector pos(0, 0, 0);
+				LTRotation quat(0, 0, 0, 1);
+				ltbAnimNode->GetData(k, pos, quat);
+				if (k > 0 && pos == prePos && quat == preQuat) 
+				{
+					continue;
+				}
+				avaliableKeyFrameIdx.push_back(k);
+				prePos = pos;
+				preQuat = quat;
+			}
+			unsigned int numAvaliableKeyFrame = avaliableKeyFrameIdx.size();
+			if (numAvaliableKeyFrame <= 0)
+			{
+				numAvaliableKeyFrame = 2;
+				avaliableKeyFrameIdx.push_back(0);
+				avaliableKeyFrameIdx.push_back(numLTBKeyFrame - 1);
+			}
+			else if (avaliableKeyFrameIdx[numAvaliableKeyFrame - 1] != numLTBKeyFrame - 1) 
+			{
+				numAvaliableKeyFrame++;
+				avaliableKeyFrameIdx.push_back(numLTBKeyFrame - 1);
+			}
+			//
+			nodeAnim->mNodeName = ltbModel->GetNode(skeNodeIdx)->GetName();
+			nodeAnim->mNumPositionKeys = numAvaliableKeyFrame;
+			nodeAnim->mPositionKeys = new aiVectorKey[numAvaliableKeyFrame]();
+			nodeAnim->mNumRotationKeys = numAvaliableKeyFrame;
+			nodeAnim->mRotationKeys = new aiQuatKey[numAvaliableKeyFrame]();
+			nodeAnim->mNumScalingKeys = numAvaliableKeyFrame;
+			nodeAnim->mScalingKeys = new aiVectorKey[numAvaliableKeyFrame]();
+			//
+			aiVector3D defaultScaling(1, 1, 1);
+			for (unsigned int k = 0; k < numAvaliableKeyFrame; ++k)
+			{
+				unsigned int frameIdx = avaliableKeyFrameIdx[k];
+				LTBAnimKeyFrame frame = ltbAnim->m_KeyFrames[frameIdx];
 				LTVector pos(0,0,0);
 				LTRotation quat(0,0,0,1);
-				ltbAnimNode->GetData(k, pos, quat);
+				ltbAnimNode->GetData(frameIdx, pos, quat);
 				//
 				double frameTime = (double)frame.m_Time / toSecond;
 				aiVector3D nodePos(pos.x, pos.y, pos.z);
@@ -274,6 +307,9 @@ void Converter::grabAnimationsFromLTB(LTBModelPtr ltbModel)
 				//
 				aiQuatKey rotKey(frameTime,nodeRot);
 				nodeAnim->mRotationKeys[k] = rotKey;
+				//
+				aiVectorKey scaleKey(frameTime, defaultScaling);
+				nodeAnim->mScalingKeys[k] = scaleKey;
 			}
 			//
 			nodeAnimPtrVec->push_back(nodeAnim);
@@ -321,6 +357,8 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 			aiVector3D* uvs = new aiVector3D[numVert]();
 			aiVector3D* tangents = new aiVector3D[numVert]();
 			aiVector3D* bitangents = new aiVector3D[numVert]();
+			aiColor4D* colors = new aiColor4D[numVert]();
+			aiColor4D defaultColor(1.0, 1.0, 1.0,1.0);
 			for (size_t vIdx = 0; vIdx < numVert; ++vIdx)
 			{
 				ModelVert ltbVert = draw->m_Verts[vIdx];
@@ -340,6 +378,7 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 				uvs[vIdx] = uv;
 				tangents[vIdx] = tangent;
 				bitangents[vIdx] = bitangent;
+				colors[vIdx] = defaultColor;
 			}
 			size_t numTri = draw->m_Tris.GetSize();
 			aiFace* faces = new aiFace[numTri]();
@@ -359,6 +398,7 @@ void Converter::grabMeshesFromLTB(LTBModelPtr ltbModel)
 			mesh->mBitangents = bitangents;
 			mesh->mFaces = faces;
 			mesh->mNumFaces = numTri;
+			mesh->mColors[0] = colors;
 		}
 		mesh->mNumBones = m_bonesPtrArrPerMeshVec[meshIdx].size();
 		mesh->mBones = &m_bonesPtrArrPerMeshVec[meshIdx][0];
